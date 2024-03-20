@@ -1,0 +1,12 @@
+div {
+    flex-flow: column wrap;
+}
+
+h1 {
+    text-align: center;
+}
+
+p {
+    display: flex;
+    justify-content: center;
+}

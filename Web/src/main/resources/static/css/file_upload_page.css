@@ -1,0 +1,23 @@
+#layout_div {
+    width: 100%;
+    margin-left: 20px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: start;
+}
+
+#back_btn_div {
+    width: 70px
+}
+
+#file_upload {
+    margin-top: 5px;
+}
+
+form {
+    width: 70%
+}
+
+input[type="checkbox"]:checked {
+    accent-color: black;
+}

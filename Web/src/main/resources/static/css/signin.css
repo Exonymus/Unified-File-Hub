@@ -1,0 +1,121 @@
+@import url('https://fonts.cdnfonts.com/css/liberation-mono');
+
+#siteName {
+    font-family: "Liberation Mono", serif;
+    font-weight: 400!important;
+}
+
+img {
+    height: 170px;
+    weight: 170px;
+}
+
+.error {
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+.msg_fields {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.inner_img {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-flow: column wrap;
+}
+
+body {
+    font-family: "Trebuchet MS", serif;
+    background-color: #f5f5f5;
+    height: 100vh;
+}
+
+.center {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.center h1 {
+    text-align: center;
+}
+
+.center form {
+    padding: 0 40px;
+    box-sizing: border-box;
+}
+
+.pass {
+    margin: -5px 0 20px 5px;
+    color: #a6a6a6;
+    cursor: pointer;
+}
+
+.pass:hover {
+    text-decoration: underline;
+}
+
+button[type="submit"] {
+    background: black;
+    width: 100%;
+    height: 50px;
+    border: 1px solid;
+    border-radius: 25px;
+    font-size: 18px;
+    color: #e9f4fb;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+    margin-bottom: 10px;
+}
+
+button[type="submit"]:hover {
+    border-color: black;
+    transition: .5s;
+}
+
+button[disabled] {
+    background: #414141;
+}
+
+button[disabled]:hover {
+    border-color: #414141;
+    transition: .5s;
+}
+
+.signup_link {
+    margin: 30px 0;
+    text-align: center;
+    font-size: 14px;
+    color: #666666;
+}
+
+.signup_link a {
+    color: black;
+    text-decoration: none;
+}
+
+.signup_link a:hover {
+    text-decoration: underline;
+}
+
+.error {
+    color: #f88989;
+}
+
+
+
+
+
+
+
+
+
+
+

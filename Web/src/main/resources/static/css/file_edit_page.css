@@ -1,0 +1,7 @@
+#file_name_view {
+    display: none;
+}
+
+input[type="checkbox"]:checked {
+    accent-color: black;
+}

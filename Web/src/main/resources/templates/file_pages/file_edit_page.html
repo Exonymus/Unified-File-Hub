@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{_layout}" xmlns="http://www.w3.org/1999/html">
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="/css/file_page.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/tools/input_field.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/tools/custom_btn.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/tools/control_btn.css" type="text/css"/>
+  <link rel="stylesheet" href="/css/file_edit_page.css" type="text/css"/>
+  <title>DesuRep - File view</title>
+</head>
+
+<body>
+<main>
+  <div id="layout_div" layout:fragment="content">
+    <div id="back_btn_div">
+      <a href="/"><button class="table_btn">Back</button></a></div>
+    <div id="form_div">
+      <form action="/editfile" method="post" enctype="multipart/form-data">
+        <h1>Edit file</h1>
+
+        <input id="file_name_view" class="filter_input" type="text" name="filename"
+               th:value="${file.getFilename()}"></label></p>
+
+        <p><label class="filter_label" id="topLabel"> Work title (or file name)
+          <input class="filter_input" type="text" name="publicationName"
+                 th:value="${file.getPublicationName()}"></label></p>
+
+        <p><label class="filter_label"> Author
+          <input class="filter_input" type="text" name="author"
+                 th:value="${file.getAuthorName()}"></label></p>
+
+        <p><label class="filter_label"> Specialization
+          <input class="filter_input" type="text" name="theme"
+                 th:value="${file.getTheme()}"></label></p>
+
+        <p><label class="filter_label"> Publication date
+          <input class="filter_input" type="text" name="yearOfPublication"
+                 th:value="${file.getPublicationDate()}"></label></p>
+
+        <p><label class="filter_label"> Make it public?
+          <input type="checkbox" name="isPublic"
+                  th:checked="${file.isPublic()}"></label></p>
+
+        <p><label class="filter_label"> Description
+          <textarea class="filter_input" name="description"
+                    th:inline="text">[[${description}]]</textarea></label></p>
+        <input type="hidden" name="_csrf" value="{{_csrf.token}}">
+
+        <div class="control_btns">
+          <button class="table_btn control_btn" type="submit" name="res" value="sub">Edit</button>
+          <button class="table_btn control_btn" type="submit" name="res" value="reset">Reset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+</body>
+</html>

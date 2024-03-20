@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{_layout}" xmlns="http://www.w3.org/1999/html">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/css/index.css" type="text/css"/>
+    <link rel="stylesheet" href="/css/tools/input_field.css" type="text/css"/>
+    <link rel="stylesheet" href="/css/tools/custom_btn.css" type="text/css"/>
+    <link rel="stylesheet" href="/css/tools/control_btn.css" type="text/css"/>
+    <title>DesuRep - My files</title>
+</head>
+
+<body>
+    <main>
+        <div id="layout_div" layout:fragment="content">
+            <section id="filters">
+                <form id="form_div" action="/" method="post">
+                    <h1>File search</h1>
+                    <div class="filter_str" id="filter_first_str">
+                        <label class="filter_label"> Work title (or file name)
+                            <input class="filter_input" type="text" name="publicationName"
+                                   th:if="${exFile.getPublicationName} != 'Any_value'"
+                                   th:value="${exFile.getPublicationName}">
+                            <input class="filter_input" type="text" name="publicationName"
+                                   th:if="${exFile.getPublicationName} == 'Any_value'"><br>
+                        </label>
+
+                        <label class="filter_label"> Author
+                            <input class="filter_input" type="text" name="authorName"
+                                   th:if="${exFile.getAuthorName} != 'Any_value'"
+                                   th:value="${exFile.getAuthorName}">
+                            <input class="filter_input" type="text" name="authorName"
+                                   th:if="${exFile.getAuthorName} == 'Any_value'"><br>
+                        </label>
+
+                        <label class="filter_label"> Upload date
+                            <input class="filter_input" type="date" name="uploadDate"
+                                   th:if="${exFile.getPublicationDate} != 'Any_value'"
+                                   th:value="${exFile.getPublicationDate}">
+                            <input class="filter_input" type="date" name="uploadDate"
+                                   th:if="${exFile.getPublicationDate} == 'Any_value'"><br>
+                        </label>
+                    </div>
+                    <div class="filter_str" id="filter_second_str">
+                        <label class="filter_label"> Specialization
+                            <input class="filter_input" type="text" name="theme"
+                                   th:if="${exFile.getTheme} != 'Any_value'"
+                                   th:value="${exFile.getTheme}">
+                            <input class="filter_input" type="text" name="theme"
+                                   th:if="${exFile.getTheme} == 'Any_value'"><br>
+                        </label>
+                        <label class="filter_label"> Year of publication
+                            <input class="filter_input" type="text" name="publicationDate"
+                                   th:if="${exFile.getPublicationDate} != 'Any_value'"
+                                   th:value="${exFile.getPublicationDate}">
+                            <input class="filter_input" type="text" name="publicationDate"
+                                   th:if="${exFile.getPublicationDate} == 'Any_value'"><br>
+                        </label>
+                    </div>
+                    <input type="hidden" name="_csrf" value="{{_csrf.token}}">
+                    <div class="control_btns" style="display: flex; flex-direction: column;">
+                        <div style="display: flex; flex-direction: row;">
+                            <button class="table_btn control_btn" type="submit" name="res" value="sub">Search</button>
+                            <button class="table_btn control_btn" type="submit" name="res" value="res">Reset</button>
+                        </div>
+                        <div style="margin-top: 10px; margin-right: 15px">
+                            <button class="table_btn control_btn" type="submit" name="res" value="new">Upload new</button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+            <section id="file_table">
+                <h1>My files</h1>
+                <div class="table_section" id="file_table_div">
+                    <table id="customers" class="table_sort">
+                        <thead>
+                            <tr>
+                                <th id="wrk_title">Work title (or file name)</th>
+                                <th id="author">Author</th>
+                                <th id="spec">Specialization</th>
+                                <th id="public_year">Year of publication</th>
+                                <th id="upld_date">Upload date</th>
+                                <th aria-disabled="true"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <div th:each="file: ${files}">
+                                <tr>
+                                    <th class="file_table_box" th:text="${file.getPublicationName}"></th>
+                                    <th class="file_table_box" th:text="${file.getAuthorName}"></th>
+                                    <th class="file_table_box" th:text="${file.getTheme}"></th>
+                                    <th class="file_table_box" th:text="${file.getPublicationDate}"></th>
+                                    <th class="file_table_box" th:text="${file.getUploadDate}"></th>
+                                    <th class="file_table_box">
+                                        <form method="post" action="/file_control">
+                                            <button class="table_btn" name="openfile" th:value="${file.getFilename()}">
+                                                <img src="/img/icons/eye-fill.svg" alt="open"></button>
+                                            <button class="table_btn" name="editfile" th:value="${file.getFilename()}">
+                                                <img src="/img/icons/pencil-fill.svg" alt="edit"></button>
+                                            <button class="table_btn" name="delfile" th:value="${file.getFilename()}">
+                                                <img src="/img/icons/trash-fill.svg" alt="delete"></button>
+                                        </form>
+                                    </th>
+                                </tr>
+                            </div>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

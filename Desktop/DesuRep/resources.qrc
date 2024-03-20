@@ -1,0 +1,26 @@
+<RCC>
+    <qresource prefix="/overlay">
+        <file alias="background">resources/overlay/background.png</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file alias="exit">resources/icons/icon_btnExit.png</file>
+        <file alias="logout">resources/icons/icon_btnLogout.png</file>
+        <file alias="admin">resources/icons/icon_btnAdmin.png</file>
+        <file alias="login">resources/icons/icon_btnLogin.png</file>
+        <file alias="back">resources/icons/icon_btnBack.png</file>
+        <file alias="confirm">resources/icons/icon_btnConfirm.png</file>
+        <file alias="edit">resources/icons/icon_btnEdit.png</file>
+        <file alias="remove">resources/icons/icon_btnRemove.png</file>
+        <file alias="refresh">resources/icons/icon_btnRefresh.png</file>
+        <file alias="download">resources/icons/icon_btnDownload.png</file>
+        <file alias="upload">resources/icons/icon_btnUpload.png</file>
+        <file alias="register">resources/icons/icon_btnSignUp.png</file>
+        <file alias="folder">resources/icons/icon_folder.png</file>
+        <file alias="home">resources/icons/icon_home.svg</file>
+        <file alias="file">resources/icons/icon_file.svg</file>
+        <file alias="home-folder">resources/icons/icon_home-folder.png</file>
+        <file alias="gdrive">resources/icons/icon_btnGDrive.svg</file>
+        <file alias="odrive">resources/icons/icon_btnODrive.svg</file>
+        <file alias="cPass">resources/icons/icon_btnChangePass.png</file>
+    </qresource>
+</RCC>
