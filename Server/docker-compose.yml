@@ -1,9 +1,53 @@
-version: '3'
+version: "3.7"
+
 services:
-  core_api:
-    build: .
-    container_name: "digitech-access-control-api"
+  api:
+    image: "ufh_api:1.0.0"
+    container_name: "ufh_api"
+    depends_on:
+      - db
+    build:
+      context: ./docker/api
+      dockerfile: Dockerfile
     ports:
-      - "8001:15400"
+      - "8888:8000"
     volumes:
-      - ./app:/app
+      - ./app:/usr/src/app/app:cached
+      - ./db:/usr/src/app/db:cached
+      - ./scripts:/usr/src/app/scripts:cached
+    working_dir: /usr/src/app/scripts
+    command: bash -c "./run.sh"
+    networks:
+      - fastapi_network
+    environment:
+      APP_ENV: "development"
+    env_file:
+      - .env.development
+  db:
+    image: "ufh_db:1.0.0"
+    container_name: "ufh_db"
+    build:
+      context: ./docker/db
+      dockerfile: Dockerfile
+    restart: always
+    tty: true
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./docker/db/conf.d:/etc/mysql/conf.d:cached
+      - ./log/db:/var/log/mysql:cached
+    networks:
+      - fastapi_network
+    environment:
+      APP_ENV: "development"
+    env_file:
+      - .env.development
+
+networks:
+  default:
+    external:
+      name: bridge
+  fastapi_network:
+    name: fastapi_network
+    driver: bridge
+    external: true

@@ -1,10 +1,11 @@
+from database import Base
 from sqlalchemy import Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy_utils import UUIDType
+from uuid import uuid4
 
-Base = declarative_base()
 
 class Roles(Base):
     __tablename__ = 'roles'
 
-    id = Column(Integer, primary_key=True)
-    role_name = Column(String)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
+    role_name = Column(String(255), nullable=False)

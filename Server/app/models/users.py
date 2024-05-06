@@ -1,20 +1,21 @@
+from database import Base
 from sqlalchemy import Column, Integer, String, Boolean
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy_utils import UUIDType
+from uuid import uuid4
 
-Base = declarative_base()
 
 class Users(Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String)
-    email = Column(String)
-    password = Column(String)
-    on_active = Column(Boolean)
-    is_banned = Column(Boolean)
-    is_actual = Column(Boolean)
-    role = Column(Integer)
-    
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
+    username = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=False)
+    on_active = Column(Boolean, nullable=False)
+    is_banned = Column(Boolean, nullable=False)
+    is_actual = Column(Boolean, nullable=False)
+    role = Column(UUIDType(binary=False), default=uuid4)
+
     def to_json(self):
         return {"id": self.id, "username": self.username, "email": self.email,
                 "on_active": self.on_active, "is_banned": self.is_banned, "is_actual": self.is_actual,
