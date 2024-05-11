@@ -4,17 +4,17 @@ from sqlalchemy_utils import UUIDType
 from uuid import uuid4
 
 
-class Users(Base):
+class User(Base):
     __tablename__ = 'users'
 
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     username = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
     password = Column(String(255), nullable=False)
     on_active = Column(Boolean, nullable=False)
     is_banned = Column(Boolean, nullable=False)
     is_actual = Column(Boolean, nullable=False)
-    role = Column(UUIDType(binary=False), default=uuid4)
+    role = Column(Integer, nullable=False)
 
     def to_json(self):
         return {"id": self.id, "username": self.username, "email": self.email,

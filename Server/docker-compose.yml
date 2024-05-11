@@ -1,7 +1,7 @@
 version: "3.7"
 
 services:
-  api:
+  fastapi:
     image: "ufh_api:1.0.0"
     container_name: "ufh_api"
     depends_on:
@@ -15,6 +15,7 @@ services:
       - ./app:/usr/src/app/app:cached
       - ./db:/usr/src/app/db:cached
       - ./scripts:/usr/src/app/scripts:cached
+      - file_storage:/usr/src/app/files
     working_dir: /usr/src/app/scripts
     command: bash -c "./run.sh"
     networks:
@@ -23,6 +24,7 @@ services:
       APP_ENV: "development"
     env_file:
       - .env.development
+
   db:
     image: "ufh_db:1.0.0"
     container_name: "ufh_db"
@@ -30,7 +32,6 @@ services:
       context: ./docker/db
       dockerfile: Dockerfile
     restart: always
-    tty: true
     ports:
       - "3307:3306"
     volumes:
@@ -43,11 +44,11 @@ services:
     env_file:
       - .env.development
 
+volumes:
+  file_storage:
+    driver: local
+
 networks:
-  default:
-    external:
-      name: bridge
   fastapi_network:
     name: fastapi_network
     driver: bridge
-    external: true

@@ -26,7 +26,7 @@ qreal File::getSizeInMB() const
 }
 
 
-QString  File::getFileExtensionFromMimeType(const QString& mimeTypeName)
+QString File::getFileExtensionFromMimeType(const QString& mimeTypeName)
 {
     QMimeDatabase mimeDatabase;
     QMimeType mimeType = mimeDatabase.mimeTypeForName(mimeTypeName);

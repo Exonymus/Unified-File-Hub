@@ -4,8 +4,8 @@ from sqlalchemy_utils import UUIDType
 from uuid import uuid4
 
 
-class Roles(Base):
+class Role(Base):
     __tablename__ = 'roles'
 
-    id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
+    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     role_name = Column(String(255), nullable=False)

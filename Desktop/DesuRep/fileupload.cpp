@@ -129,7 +129,7 @@ File FileUploadDialog::getUploadData() const
     uploadData["Name"] = fileNameLineEdit->text();
     uploadData["Type"] = fType;
     uploadData["Uploader"] = windControl->session->getUsername();
-    uploadData["Path"] = filePathLineEdit->text();
+    uploadData["Path"] = filePathLineEdit->text().isEmpty()? "." : filePathLineEdit->text();
     uploadData["Description"] = descriptionTextEdit->toPlainText();
     uploadData["Author"] = authorLineEdit->text();
     uploadData["Theme"] = themeLineEdit->text();

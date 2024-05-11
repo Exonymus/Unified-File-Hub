@@ -1,7 +1,7 @@
 from database import Base, engine
-from .files import Files
-from .roles import Roles
-from .users import Users
+from .file import File
+from .role import Role
+from .user import User
 
 
 Base.metadata.create_all(bind=engine)

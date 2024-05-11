@@ -16,11 +16,11 @@ Database::Database()
 
     // Set the database connection parameters
     remote = QSqlDatabase::addDatabase("QMYSQL", "remote");
-    remote.setHostName("174.138.14.230");
-    remote.setPort(3306);
-    remote.setDatabaseName("desurep");
-    remote.setUserName("desuuser");
-    remote.setPassword("S0siteXui!1User");
+    remote.setHostName("127.0.0.1");
+    remote.setPort(3307);
+    remote.setDatabaseName("db");
+    remote.setUserName("user");
+    remote.setPassword("password");
 
     if (!remote.open()) {
         qDebug() << "Failed to connect to the database: " << remote.lastError().text();
