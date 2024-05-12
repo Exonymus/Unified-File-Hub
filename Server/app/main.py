@@ -1,4 +1,6 @@
 from fastapi import FastAPI, APIRouter
+from starlette.responses import RedirectResponse
+
 from routers.user import router as user_router
 from routers.file import router as file_router
 
@@ -16,3 +18,11 @@ router.include_router(
 
 app = FastAPI()
 app.include_router(router)
+
+
+@app.get("/", tags=["Root"])
+async def read_root():
+    """
+    Redirects to FastAPI automatic interactive API documentation at /docs
+    """
+    return RedirectResponse(url="/docs")

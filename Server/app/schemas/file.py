@@ -1,23 +1,27 @@
-from datetime import datetime
-
 from pydantic import BaseModel
 from uuid import UUID
 
 
-class FileMetadata(BaseModel):
-    download_id: UUID
-    filename: str
-    filename_full: str
-    author_name: str
-    publication_name: str
-    theme: str
-    publication_date: datetime
-    uploader_name: str
+class File(BaseModel):
+    name: str
+    path: str
+    mime_type: str
     description: str
-    upload_date: datetime
-    doc_type: str
+    author: str
+    theme: str
     is_public: bool
-    folder_path: str
+    owner_id: UUID
+
+    class Config:
+        orm_mode = True
+
+
+class FileUpdate(BaseModel):
+    name: str
+    description: str
+    author: str
+    theme: str
+    is_public: bool
 
     class Config:
         orm_mode = True

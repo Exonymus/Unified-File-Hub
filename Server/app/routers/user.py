@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import cruds.user as crud
 from database import get_db
 from fastapi import APIRouter, Depends
@@ -10,8 +12,8 @@ router = APIRouter()
 
 
 @router.post('/get_user_info')
-async def get_user_info(username: str, db: Session = Depends(get_db)):
-    response = crud.get_user_info(username=username, db=db)
+async def get_user_info(user_id: UUID, db: Session = Depends(get_db)):
+    response = crud.get_user_info(user_id=user_id, db=db)
     response_json = {}
     counter = 0
     for _ in response:
@@ -21,7 +23,7 @@ async def get_user_info(username: str, db: Session = Depends(get_db)):
 
 
 @router.post('/edit_user')
-async def edit_user(user_id: int, email: EmailStr, db: Session = Depends(get_db)):
+async def edit_user(user_id: UUID, email: EmailStr, db: Session = Depends(get_db)):
     crud.update_user(user_id=user_id, email=email, db=db)
     return {"data": 0}
 

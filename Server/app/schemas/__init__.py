@@ -1,2 +1,2 @@
-from .file import FileMetadata
-# from .user import User
+from .file import File as FileMetadata, FileUpdate
+from .user import User as UserMetadata

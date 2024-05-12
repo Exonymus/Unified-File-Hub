@@ -1,5 +1,6 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 from uuid import uuid4
 
@@ -7,14 +8,22 @@ from uuid import uuid4
 class User(Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
+    role_id = Column(UUIDType(binary=False), ForeignKey("roles.id"), nullable=False)
     username = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
+    secret_num = Column(Integer, nullable=False)
+    secret_answer = Column(String(255), nullable=False)
     password = Column(String(255), nullable=False)
-    on_active = Column(Boolean, nullable=False)
+    reg_date = Column(DateTime(), nullable=False)
     is_banned = Column(Boolean, nullable=False)
-    is_actual = Column(Boolean, nullable=False)
-    role = Column(Integer, nullable=False)
+
+    role = relationship("Role", back_populates="users")
+    files = relationship("File", back_populates="owner")
+
+    connections_G = relationship("GDConn", back_populates="user")
+    connections_O = relationship("ODConn", back_populates="user")
+    connections_F = relationship("FTPConn", back_populates="user")
 
     def to_json(self):
         return {"id": self.id, "username": self.username, "email": self.email,

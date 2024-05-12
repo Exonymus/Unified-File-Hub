@@ -1,92 +1,207 @@
-import uuid
-from datetime import datetime
+import mimetypes
+import shutil
+from pathlib import Path
+from typing import List, Tuple, Union
+from uuid import UUID, uuid4
 
-from fastapi import HTTPException, UploadFile
-from models import File
-from schemas import FileMetadata
-from sqlalchemy import select, or_, and_
+from fastapi import HTTPException, status
+from models import File, User
+from schemas import FileMetadata, FileUpdate
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from starlette.status import HTTP_404_NOT_FOUND
-from uuid import UUID
 
 
-def create_file_metadata(db: Session, metadata: FileMetadata):
-    file = File(
-        filename=metadata.filename,
-        download_id=metadata.download_id,
-        author_name=metadata.author_name,
-        publication_name=metadata.publication_name,
-        theme=metadata.theme,
-        publication_date=metadata.publication_date,
-        description=metadata.description,
-        upload_date=metadata.upload_date,
-        uploader_name=metadata.uploader_name,
-        folder_path=metadata.folder_path,
-        doc_type=metadata.doc_type,
-        is_public=metadata.is_public
-    )
-    db.add(file)
-    db.commit()
-    return 0
+def construct_file_path(user_id: UUID, file_id: UUID, file_path: str, file_type: str) -> Path:
+    """
+        Construct the full file path.
+
+        Args:
+            user_id (UUID): The user ID.
+            file_id (UUID): The file ID.
+            file_path (str): The path of the file within the user's directory.
+            file_type (str): The MIME type of the file.
+
+        Returns:
+            Path: The full file path.
+    """
+
+    # Construct the base directory path
+    base_path = Path("/usr/src/app/files")
+
+    # Construct the user-specific directory path
+    user_directory_path = base_path / str(user_id) / "files"
+
+    # Ensure the directory structure exists
+    user_directory_path.mkdir(parents=True, exist_ok=True)
+
+    # Obtain file extension
+    file_ext = mimetypes.guess_extension(file_type) or ""
+
+    # Construct the full file path
+    file_full_path = user_directory_path / file_path / f"{file_id}{file_ext}"
+
+    return file_full_path
 
 
-def copy_file(db: Session, file_id: int, folder_path: str, username: str):
-    file = db.query(File).filter(File.id == file_id).first()
-    newfile_id = uuid.uuid4()
-    copy_file = File(filename=str(uuid.uuid4()) + file.publication_name, download_id=str(uuid.uuid4()),
-                     author_name=file.author_name, publication_name=file.publication_name,
-                     theme=file.theme, publication_date=file.publication_date, description=file.description,
-                     upload_date=file.upload_date, uploader_name=username, doc_type=file.doc_type,
-                     is_public=0, folder_path=folder_path)
-    db.add(copy_file)
-    db.commit()
+def create_file_metadata(metadata: FileMetadata, db: Session) -> Tuple[UUID, str]:
+    """
+    Create file metadata in the database.
+
+    Args:
+        metadata (FileMetadata): Metadata of the file to be created.
+        db (Session): The database session.
+
+    Returns:
+        tuple: A tuple containing the ID of the created file and MIME type.
+    """
+    try:
+        # Create a new File object with the provided metadata
+        file = File(**metadata.dict())
+        file.id = uuid4()
+
+        # Add the new file to the session and commit changes
+        db.add(file)
+        return file.id, file.mime_type
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create file metadata: {e}")
 
 
-def get_user_files(db: Session, username: str):
-    query = select(File).where(or_(File.uploader_name == username, File.is_public == 1))
-    result = db.execute(query)
-    response = [row.to_json() for row in result.scalars()]
-    return response
+def get_user_files_metadata(user_id: UUID, db: Session) -> List[File]:
+    """
+    Retrieve files owned by a user or public files.
+    Args:
+        user_id (UUID): The ID of the user whose files to retrieve.
+        db (Session): The database session.
+
+    Returns:
+        List[File]: List of files owned by the user or public files.
+    """
+    # Check if the user exists in the database
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User does not exist")
+
+    # Retrieve files owned by the user or public files
+    files = db.query(File).filter(or_(File.owner_id == user_id, File.is_public is True)).all()
+
+    return files
 
 
-def get_user_files_metadata(db: Session, username: str):
-    query = select(File).where(or_(File.uploader_name == username, File.is_public == 1))
-    result = db.execute(query)
-    response = [row.to_json_no_blob() for row in result.scalars()]
-    return response
+def copy_file(file_id: UUID, file_path: str, db: Session) -> None:
+    """
+        Copy a file with the specified ID to a new location.
+
+        Args:
+            file_id (UUID): The ID of the file to be copied.
+            file_path (str): The new path where the file will be copied.
+            db (Session): The database session.
+
+        Raises:
+            HTTPException: If the source file is not found or if an internal server error occurs.
+    """
+    # Check if the source file exists in the database
+    copyfile = db.query(File).filter(File.id == file_id).first()
+    if not copyfile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Source file not found")
+
+    # Begin a transaction for database operations
+    try:
+        # Create a copy of the file metadata with a new ID and path
+        new_file = copyfile.copy()
+        new_file.path = file_path
+        db.add(new_file)
+
+        # Construct source and destination file paths
+        src_file_path = construct_file_path(user_id=copyfile.owner_id, file_id=copyfile.id,
+                                            file_path=copyfile.path, file_type=copyfile.mime_type)
+        dst_file_path = construct_file_path(user_id=new_file.owner_id, file_id=new_file.id,
+                                            file_path=file_path, file_type=new_file.mime_type)
+
+        # Ensure the destination directory exists
+        dst_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Copy the file
+        shutil.copy(src_file_path, dst_file_path)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to copy file: {e}")
 
 
-def delete_file(db: Session, file_id: int):
-    file = db.query(File).filter(File.id == file_id).first()
+def get_file_metadata_by_id(file_id: UUID, db: Session) -> Union[File, None]:
+    """
+    Get file metadata from the database by ID.
+
+    Args:
+        file_id (UUID): ID of the file to be searched.
+        db (Session): The database session.
+
+    Returns:
+        File: The file metadata if found, None otherwise.
+    """
+    try:
+        file_metadata = db.query(File).get(file_id)
+        if not file_metadata:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="File not found.")
+        return file_metadata
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to search for the file metadata: {e}")
+
+
+def update_file_metadata(file_id: UUID, metadata: FileUpdate, db: Session) -> None:
+    """
+        Update file metadata in the database.
+
+        Args:
+            file_id (UUID): ID of the file to be updated.
+            metadata (FileUpdate): Updated metadata.
+            db (Session): The database session.
+    """
+    file = db.query(File).get(file_id)
+    if not file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="File not found.")
+
+    for key, value in metadata.dict().items():
+        setattr(file, key, value)
+
+
+def delete_file_metadata(file_id: UUID, db: Session) -> Path:
+    """
+        Delete file metadata from the database.
+
+        Args:
+            file_id (UUID): ID of the file to be deleted.
+            db (Session): The database session.
+
+        Returns:
+            str: Path of file data object to be deleted.
+    """
+    file = db.query(File).get(file_id)
+    if not file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="File not found.")
+    file_path = construct_file_path(user_id=file.owner_id, file_id=file.id,
+                                    file_path=file.path, file_type=file.mime_type)
     db.delete(file)
-    db.commit()
-    return 0
+
+    return file_path
 
 
-def update_file(db: Session, file_id: int, author_name: str, publication_name: str,
-                theme: str, publication_date: datetime, description: str,
-                is_public: bool, folder_path: str):
-    file = db.query(File).filter(File.id == file_id).first()
-    setattr(file, "author_name", author_name)
-    setattr(file, "publication_name", publication_name)
-    setattr(file, "theme", theme)
-    setattr(file, "publication_date", publication_date)
-    setattr(file, "description", description)
-    setattr(file, "is_public", bool(int(is_public)))
-    setattr(file, "folder_path", folder_path)
-    db.commit()
-    return 0
-
-
-def get_all_public_files(db: Session):
-    query = select(File).where(File.is_public == 1)
-    result = db.execute(query)
-    response = [row.to_json_no_blob() for row in result.scalars()]
-    return response
-
-
-def get_public_file_by_id(db: Session, file_id: int):
-    query = select(File).where(and_(File.is_public == 1, File.id == file_id))
-    result = db.execute(query)
-    response = [row.to_json_no_blob() for row in result.scalars()]
-    return response
+# def get_all_public_files(db: Session):
+#     query = select(File).where(File.is_public == 1)
+#     result = db.execute(query)
+#     response = [row.to_json_no_blob() for row in result.scalars()]
+#     return response
+#
+#
+# def get_public_file_by_id(db: Session, file_id: int):
+#     query = select(File).where(and_(File.is_public == 1, File.id == file_id))
+#     result = db.execute(query)
+#     response = [row.to_json_no_blob() for row in result.scalars()]
+#     return response

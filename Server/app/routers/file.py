@@ -1,65 +1,28 @@
 import asyncio
+import mimetypes
 import os
-from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
 import aiofiles
-from schemas.file import FileMetadata
 import cruds.file as crud
 from database import get_db
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from pydantic import EmailStr
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi.responses import FileResponse
+from schemas import FileMetadata, FileUpdate
 from sqlalchemy.orm import Session
 
 router = APIRouter()
 
 
-@router.post('/get_user_files')
-async def get_user_files(username: str, db: Session = Depends(get_db)):
-    response = crud.get_user_files(username=username, db=db)
-    response_json = {}
-    counter = 0
-    for item in response:
-        response_json[f"{counter}"] = response[counter]
-        counter += 1
-    return {"data": response_json}
-
-
-@router.post('/get_user_files_metadata')
-async def get_user_files_metadata(username: str, db: Session = Depends(get_db)):
-    response = crud.get_user_files_metadata(username=username, db=db)
-    response_json = {}
-    counter = 0
-    for item in response:
-        response_json[f"{counter}"] = response[counter]
-        counter += 1
-    return {"data": response_json}
-
-
-@router.post('/delete_file')
-async def delete_file(file_id: int, db: Session = Depends(get_db)):
-    crud.delete_file(file_id=file_id, db=db)
-    return {"data": 0}
-
-
-@router.post('/update_file')
-async def update_file(file_id: int, author_name: str, publication_name: str,
-                      theme: str, publication_date: datetime, description: str,
-                      is_public: bool, folder_path: str, db: Session = Depends(get_db)):
-    crud.update_file(file_id=file_id, author_name=author_name, publication_name=publication_name,
-                     theme=theme, publication_date=publication_date, description=description,
-                     is_public=is_public, folder_path=folder_path, db=db)
-    return {"data": 0}
-
-
-async def save_uploaded_file(file_owner: str, file_path: str, file_name: str, file_data: UploadFile):
-    destination = f"/usr/src/app/files/{file_owner}/files/{file_path}/"
+async def save_uploaded_file(file_owner_id: UUID, file_path: str,
+                             file_name: str, file_data: UploadFile):
+    destination = f"/usr/src/app/files/{str(file_owner_id)}/files/{file_path}/"
     try:
         Path(destination).mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(destination + file_name, 'wb') as out_file:
-            while content := await file_data.read(1024):  # async read chunk
-                await out_file.write(content)  # async write chunk
+        async with aiofiles.open(f"{destination}{file_name}", 'wb') as out_file:
+            while content := await file_data.read(1024):
+                await out_file.write(content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
@@ -68,33 +31,123 @@ async def save_uploaded_file(file_owner: str, file_path: str, file_name: str, fi
 async def upload_file(metadata: FileMetadata = Depends(),
                       input_data: UploadFile = File(...),
                       db: Session = Depends(get_db)):
-    await asyncio.create_task(save_uploaded_file(file_owner=metadata.uploader_name,
-                                                 file_path=metadata.folder_path,
-                                                 file_name=metadata.filename_full,
-                                                 file_data=input_data))
-    crud.create_file_metadata(metadata=metadata, db=db)
+    try:
+        db.begin()
+        file_id, file_type = crud.create_file_metadata(metadata=metadata, db=db)
+        file_name = str(file_id) + mimetypes.guess_extension(file_type)
+        await asyncio.create_task(save_uploaded_file(file_owner_id=metadata.owner_id,
+                                                     file_path=metadata.path,
+                                                     file_name=file_name,
+                                                     file_data=input_data))
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+    finally:
+        db.close()
 
-    return {"data": 0}
+    return {"result": "success"}
 
 
-@router.post('/copy_file')
-async def copy_file(file_id: int, folder_path: str,
-                    username: str, db: Session = Depends(get_db)):
-    crud.copy_file(file_id=file_id, folder_path=folder_path,
-                   username=username, db=db)
+@router.get('/get_user_files/{user_id}')
+async def get_user_files(user_id: UUID, db: Session = Depends(get_db)):
+    try:
+        files = crud.get_user_files_metadata(user_id=user_id, db=db)
+        return {"data": [file.to_json() for file in files]}
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve files: {str(e)}")
 
 
-@router.post('/get_public_file_by_id')
-async def get_public_file_by_id(file_id: int, db: Session = Depends(get_db)):
-    return {"data": crud.get_public_file_by_id(file_id=file_id, db=db)}
+@router.post('/update_file/{file_id}')
+async def update_file(file_id: UUID, metadata: FileUpdate = Depends(), db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.update_file_metadata(file_id=file_id, metadata=metadata, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update file: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
 
 
-@router.post('/get_all_public_files')
-async def get_all_public_files(db: Session = Depends(get_db)):
-    response = crud.get_all_public_files(db=db)
-    response_json = {}
-    counter = 0
-    for item in response:
-        response_json[f"{counter}"] = response[counter]
-        counter += 1
-    return {"data": response_json}
+@router.post('/delete_file/{file_id}')
+async def delete_file(file_id: UUID, db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        file_path = crud.delete_file_metadata(file_id=file_id, db=db)
+        os.remove(file_path)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.get('/download_file/{file_id}')
+async def download_file(file_id: UUID, db: Session = Depends(get_db)):
+    try:
+        file_metadata = crud.get_file_metadata_by_id(file_id=file_id, db=db)
+
+        file_name = file_metadata.name
+        file_type = file_metadata.mime_type
+        file_full_path = crud.construct_file_path(user_id=file_metadata.owner_id, file_id=file_id,
+                                                  file_path=file_metadata.path, file_type=file_type)
+
+        return FileResponse(filename=file_name, media_type=file_type, path=file_full_path)
+
+    except HTTPException as http_err:
+        raise http_err
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download file: {str(e)}")
+
+
+@router.post('/copy_file', status_code=status.HTTP_201_CREATED)
+async def copy_file(file_id: UUID, file_path: str, db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.copy_file(file_id=file_id, file_path=file_path, db=db)
+        db.commit()
+    except HTTPException as e:
+        db.rollback()
+        raise e
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal Server Error: {e}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+# @router.post('/get_public_file_by_id')
+# async def get_public_file_by_id(file_id: UUID, db: Session = Depends(get_db)):
+#     return {"data": crud.get_public_file_by_id(file_id=file_id, db=db)}
+#
+#
+# @router.post('/get_all_public_files')
+# async def get_all_public_files(db: Session = Depends(get_db)):
+#     response = crud.get_all_public_files(db=db)
+#     response_json = {}
+#     counter = 0
+#     for item in response:
+#         response_json[f"{counter}"] = response[counter]
+#         counter += 1
+#     return {"data": response_json}

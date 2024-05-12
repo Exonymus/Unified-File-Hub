@@ -19,15 +19,15 @@ def auth_user(username: str, password: str, db: Session):
     return True
 
 
-def get_user_info(username: str, db: Session):
+def get_user_info(user_id: UUID, db: Session):
     """Get user's metadata with username"""
-    query = select(User).where(User.username == username)
+    query = select(User).where(User.id == user_id)
     result = db.execute(query)
     response = [row.to_json() for row in result.scalars()]
     return response
 
 
-def update_user(user_id: int, email: str, db: Session):
+def update_user(user_id: UUID, email: str, db: Session):
     """Update user's metadata with new email"""
     user = db.query(User).filter(User.id == user_id).first()
     setattr(user, "email", email)

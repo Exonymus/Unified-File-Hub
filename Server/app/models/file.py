@@ -1,10 +1,12 @@
+import datetime
+from datetime import datetime as dt, timezone, timedelta
 import mimetypes
 import os
 
 import sqlalchemy
 from database import Base
-from filetype import filetype
-from sqlalchemy import Column, Integer, String, Boolean, BLOB, DATETIME
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 from uuid import uuid4
 
@@ -12,43 +14,52 @@ from uuid import uuid4
 class File(Base):
     __tablename__ = 'files'
 
-    id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    filename = Column(String(255))
-    download_id = Column(UUIDType(binary=False), nullable=False)
-    author_name = Column(String(255))
-    publication_name = Column(String(255))
-    theme = Column(String(255))
-    publication_date = Column(sqlalchemy.DateTime())
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
+    name = Column(String(255), nullable=False)
+    path = Column(String(255), nullable=False)
+    mime_type = Column(String(255), nullable=False)
     description = Column(String(255))
-    upload_date = Column(sqlalchemy.DateTime(), nullable=False)
-    uploader_name = Column(String(255))
-    folder_path = Column(String(255))
-    doc_type = Column(String(255))
-    is_public = Column(Boolean)
+    author = Column(String(255))
+    theme = Column(String(255))
+    is_public = Column(Boolean, nullable=False)
+    owner_id = Column(UUIDType(binary=False), ForeignKey("users.id"), nullable=False)
+    upload_date = Column(DateTime(), default=dt.now(tz=timezone(timedelta(hours=3))), nullable=False)
+
+    owner = relationship("User", back_populates="files")
 
     def to_json(self):
-        return {"id": self.id, "filename": self.filename, "download_id": self.download_id,
-                "author_name": self.author_name, "publication_name": self.publication_name, "theme": self.theme,
-                "publication_date": self.publication_date, "description": self.description,
-                "upload_date": self.upload_date,
-                "uploader_name": self.uploader_name, "folder_path": self.folder_path, "doc_type": self.doc_type,
-                "is_public": self.is_public, "data": str(self.data)}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "path": self.path,
+            "mime_type": self.mime_type,
+            "description": self.description,
+            "author": self.author,
+            "theme": self.theme,
+            "is_public": self.is_public,
+            "owner_id": self.owner_id,
+            "upload_date": self.upload_date,
+            "file_size":
+                os.path.getsize(f"/usr/src/app/files/{self.owner_id}/files/{self.path}"
+                                f"/{self.id}{mimetypes.guess_extension(self.mime_type)}")
+        }
 
-    def to_json_no_blob(self):
-        return {"id": self.id,
-                "filename": self.filename,
-                "download_id": self.download_id,
-                "author_name": self.author_name,
-                "publication_name": self.publication_name,
-                "theme": self.theme,
-                "publication_date": self.publication_date,
-                "description": self.description,
-                "upload_date": self.upload_date,
-                "uploader_name": self.uploader_name,
-                "folder_path": self.folder_path,
-                "doc_type": self.doc_type,
-                "is_public": self.is_public,
-                "file_size":
-                    os.path.getsize(f"/usr/src/app/files/{self.uploader_name}"
-                                    f"/files/{self.folder_path}"
-                                    f"/{self.publication_name}{mimetypes.guess_extension(self.doc_type)}")}
+    def copy(self) -> 'File':
+        """
+        Create a copy of the file metadata
+
+        Returns:
+            File: The copied file object.
+        """
+        return File(
+            id=uuid4(),
+            name=self.name,
+            path=self.path,
+            mime_type=self.mime_type,
+            description=self.description,
+            author=self.author,
+            theme=self.theme,
+            is_public=self.is_public,
+            owner_id=self.owner_id,
+            upload_date=dt.now(tz=timezone(timedelta(hours=3)))
+        )
