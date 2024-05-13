@@ -1,7 +1,7 @@
 version: "3.7"
 
 services:
-  fastapi:
+  api:
     image: "ufh_api:1.0.0"
     container_name: "ufh_api"
     depends_on:

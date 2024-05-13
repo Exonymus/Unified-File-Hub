@@ -10,7 +10,6 @@ class File(BaseModel):
     author: str
     theme: str
     is_public: bool
-    owner_id: UUID
 
     class Config:
         orm_mode = True

@@ -1,35 +1,102 @@
-import bcrypt
-from fastapi import HTTPException
-from models import User
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-from starlette.status import HTTP_404_NOT_FOUND
+from typing import Union
+
+from fastapi import HTTPException, status
 from uuid import UUID
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from pydantic import EmailStr
+
+from models import User as UserTable
+from schemas import UserInDB
 
 
-def auth_user(username: str, password: str, db: Session):
-    """Authenticate user with username and encrypted password"""
-    user = db.query(User).filter(User.username == username).first()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
+def update_user(user_id: UUID, email: EmailStr, db: Session) -> None:
+    """
+        Update user email in the database.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            email (EmailStr): Updated email.
+            db (Session): The database session.
+    """
+    user = db.query(UserTable).get(user_id)
     if not user:
-        return False
-    if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-        return False
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User not found.")
 
-    return True
-
-
-def get_user_info(user_id: UUID, db: Session):
-    """Get user's metadata with username"""
-    query = select(User).where(User.id == user_id)
-    result = db.execute(query)
-    response = [row.to_json() for row in result.scalars()]
-    return response
-
-
-def update_user(user_id: UUID, email: str, db: Session):
-    """Update user's metadata with new email"""
-    user = db.query(User).filter(User.id == user_id).first()
     setattr(user, "email", email)
-    db.commit()
-    return 0
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+        Verify user password with hash.
+
+        Args:
+            plain_password (str): Password to check.
+            hashed_password (str): Encrypted password hash.
+
+        Returns:
+            bool: True if password valid, otherwise False.
+    """
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str):
+    """
+        Hash password with bcrypt encryption
+
+        Args:
+            password (str): Password to encrypt.
+
+        Returns:
+            str: Password hash.
+    """
+    return pwd_context.hash(password)
+
+
+def get_user(username: str, db: Session) -> 'UserInDB':
+    """
+        Get user's metadata from DB.
+
+        Args:
+            username (str): User's name to find metadata in DB.
+            db (Session): The database session.
+
+        Returns:
+            UserInDB: User's metadata.
+    """
+    user = db.query(UserTable).filter(UserTable.username == username).first()
+    db.close()
+    if user:
+        return UserInDB(**user.__dict__)
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User not found.")
+
+
+def authenticate_user(username: str, password: str, db: Session) -> Union['UserInDB', bool]:
+    """
+        Authorize user with username and password.
+
+        Args:
+            username (str): User's name.
+            password (str): User's password.
+            db (Session): The database session.
+
+        Returns:
+            UserInDB: User's metadata if provided data is correct, False otherwise.
+    """
+    try:
+        user = get_user(username=username, db=db)
+        if not user:
+            return False
+        if not verify_password(password, user.hashed_password):
+            return False
+        return user
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to authenticate user: {str(e)}")

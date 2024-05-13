@@ -1,35 +1,72 @@
-from uuid import UUID
+from datetime import timedelta
+from fastapi import APIRouter
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from passlib.context import CryptContext
+from pydantic import EmailStr
+from sqlalchemy.orm import Session
+from typing_extensions import Annotated
 
+import security.token as security
 import cruds.user as crud
 from database import get_db
-from fastapi import APIRouter, Depends
-from pydantic import EmailStr
-from schemas.user import User as UserSchema
-from sqlalchemy.orm import Session
+from env import JWT_EXPIRE
+from schemas import User, Token
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/token")
 
 router = APIRouter()
 
 
-@router.post('/get_user_info')
-async def get_user_info(user_id: UUID, db: Session = Depends(get_db)):
-    response = crud.get_user_info(user_id=user_id, db=db)
-    response_json = {}
-    counter = 0
-    for _ in response:
-        response_json[f"{counter}"] = response[counter]
-        counter += 1
-    return {"data": response_json}
+@router.post("/token")
+async def login_for_access_token(
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        db: Session = Depends(get_db)
+) -> Token:
+    try:
+        user = crud.authenticate_user(username=form_data.username, password=form_data.password, db=db)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        access_token_expires = timedelta(minutes=int(JWT_EXPIRE))
+        access_token = security.create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
+        )
+        return Token(access_token=access_token, token_type="bearer")
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create access token: {str(e)}")
 
 
-@router.post('/edit_user')
-async def edit_user(user_id: UUID, email: EmailStr, db: Session = Depends(get_db)):
-    crud.update_user(user_id=user_id, email=email, db=db)
-    return {"data": 0}
+@router.get("/get_info", response_model=User)
+async def get_user_info(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+):
+    return current_user
 
 
-@router.post('/auth_user')
-async def auth_user(username: str, password: str, db: Session = Depends(get_db)):
-    if crud.auth_user(username=username, password=password, db=db):
-        return {"is_auth": True}
-    return {"is_auth": False}
+@router.post("/edit")
+async def edit_user(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        email: EmailStr,
+        db: Session = Depends(get_db)
+):
+    try:
+        db.begin()
+        crud.update_user(user_id=current_user.id, email=email, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to edit user: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}

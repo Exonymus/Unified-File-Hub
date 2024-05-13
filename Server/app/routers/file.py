@@ -1,16 +1,19 @@
 import asyncio
 import mimetypes
 import os
+import aiofiles
 from pathlib import Path
 from uuid import UUID
-
-import aiofiles
-import cruds.file as crud
-from database import get_db
+from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from fastapi.responses import FileResponse
-from schemas import FileMetadata, FileUpdate
 from sqlalchemy.orm import Session
+
+import cruds.file as crud
+import security.token as security
+from database import get_db
+from schemas import User
+from schemas import FileMetadata, FileUpdate
 
 router = APIRouter()
 
@@ -28,14 +31,18 @@ async def save_uploaded_file(file_owner_id: UUID, file_path: str,
 
 
 @router.post('/upload_file')
-async def upload_file(metadata: FileMetadata = Depends(),
-                      input_data: UploadFile = File(...),
-                      db: Session = Depends(get_db)):
+async def upload_file(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        metadata: FileMetadata = Depends(),
+        input_data: UploadFile = File(...),
+        db: Session = Depends(get_db)):
     try:
         db.begin()
-        file_id, file_type = crud.create_file_metadata(metadata=metadata, db=db)
+        file_id, file_type = crud.create_file_metadata(metadata=metadata,
+                                                       user_id=current_user.id,
+                                                       db=db)
         file_name = str(file_id) + mimetypes.guess_extension(file_type)
-        await asyncio.create_task(save_uploaded_file(file_owner_id=metadata.owner_id,
+        await asyncio.create_task(save_uploaded_file(file_owner_id=current_user.id,
                                                      file_path=metadata.path,
                                                      file_name=file_name,
                                                      file_data=input_data))
@@ -52,10 +59,12 @@ async def upload_file(metadata: FileMetadata = Depends(),
     return {"result": "success"}
 
 
-@router.get('/get_user_files/{user_id}')
-async def get_user_files(user_id: UUID, db: Session = Depends(get_db)):
+@router.get('/get_user_files')
+async def get_user_files(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        db: Session = Depends(get_db)):
     try:
-        files = crud.get_user_files_metadata(user_id=user_id, db=db)
+        files = crud.get_user_files_metadata(user_id=current_user.id, db=db)
         return {"data": [file.to_json() for file in files]}
     except HTTPException as http_err:
         raise http_err
@@ -64,10 +73,12 @@ async def get_user_files(user_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post('/update_file/{file_id}')
-async def update_file(file_id: UUID, metadata: FileUpdate = Depends(), db: Session = Depends(get_db)):
+async def update_file(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        file_id: UUID, metadata: FileUpdate = Depends(), db: Session = Depends(get_db)):
     try:
         db.begin()
-        crud.update_file_metadata(file_id=file_id, metadata=metadata, db=db)
+        crud.update_file_metadata(file_id=file_id, user_id=current_user.id, metadata=metadata, db=db)
         db.commit()
     except HTTPException as http_err:
         db.rollback()
@@ -82,10 +93,12 @@ async def update_file(file_id: UUID, metadata: FileUpdate = Depends(), db: Sessi
 
 
 @router.post('/delete_file/{file_id}')
-async def delete_file(file_id: UUID, db: Session = Depends(get_db)):
+async def delete_file(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        file_id: UUID, db: Session = Depends(get_db)):
     try:
         db.begin()
-        file_path = crud.delete_file_metadata(file_id=file_id, db=db)
+        file_path = crud.delete_file_metadata(file_id=file_id, user_id=current_user.id, db=db)
         os.remove(file_path)
         db.commit()
     except HTTPException as http_err:
@@ -101,9 +114,11 @@ async def delete_file(file_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.get('/download_file/{file_id}')
-async def download_file(file_id: UUID, db: Session = Depends(get_db)):
+async def download_file(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        file_id: UUID, db: Session = Depends(get_db)):
     try:
-        file_metadata = crud.get_file_metadata_by_id(file_id=file_id, db=db)
+        file_metadata = crud.get_file_metadata_by_id(file_id=file_id, user_id=current_user.id, db=db)
 
         file_name = file_metadata.name
         file_type = file_metadata.mime_type
@@ -120,10 +135,12 @@ async def download_file(file_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post('/copy_file', status_code=status.HTTP_201_CREATED)
-async def copy_file(file_id: UUID, file_path: str, db: Session = Depends(get_db)):
+async def copy_file(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        file_id: UUID, file_path: str, db: Session = Depends(get_db)):
     try:
         db.begin()
-        crud.copy_file(file_id=file_id, file_path=file_path, db=db)
+        crud.copy_file(file_id=file_id, user_id=current_user.id, file_path=file_path, db=db)
         db.commit()
     except HTTPException as e:
         db.rollback()
@@ -135,7 +152,6 @@ async def copy_file(file_id: UUID, file_path: str, db: Session = Depends(get_db)
         db.close()
 
     return {"result": "success"}
-
 
 # @router.post('/get_public_file_by_id')
 # async def get_public_file_by_id(file_id: UUID, db: Session = Depends(get_db)):

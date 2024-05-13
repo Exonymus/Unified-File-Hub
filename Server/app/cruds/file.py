@@ -11,7 +11,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 
-def construct_file_path(user_id: UUID, file_id: UUID, file_path: str, file_type: str) -> Path:
+def construct_file_path(user_id: UUID, file_id: UUID,
+                        file_path: str, file_type: str) -> Path:
     """
         Construct the full file path.
 
@@ -43,12 +44,13 @@ def construct_file_path(user_id: UUID, file_id: UUID, file_path: str, file_type:
     return file_full_path
 
 
-def create_file_metadata(metadata: FileMetadata, db: Session) -> Tuple[UUID, str]:
+def create_file_metadata(metadata: FileMetadata, user_id: UUID, db: Session) -> Tuple[UUID, str]:
     """
     Create file metadata in the database.
 
     Args:
         metadata (FileMetadata): Metadata of the file to be created.
+        user_id (UUID): ID of the user who uploaded the file.
         db (Session): The database session.
 
     Returns:
@@ -57,6 +59,7 @@ def create_file_metadata(metadata: FileMetadata, db: Session) -> Tuple[UUID, str
     try:
         # Create a new File object with the provided metadata
         file = File(**metadata.dict())
+        file.owner_id = user_id
         file.id = uuid4()
 
         # Add the new file to the session and commit changes
@@ -90,12 +93,14 @@ def get_user_files_metadata(user_id: UUID, db: Session) -> List[File]:
     return files
 
 
-def copy_file(file_id: UUID, file_path: str, db: Session) -> None:
+def copy_file(file_id: UUID, user_id: UUID,
+              file_path: str, db: Session) -> None:
     """
         Copy a file with the specified ID to a new location.
 
         Args:
             file_id (UUID): The ID of the file to be copied.
+            user_id (UUID): The ID of the user who requested file copy.
             file_path (str): The new path where the file will be copied.
             db (Session): The database session.
 
@@ -106,13 +111,17 @@ def copy_file(file_id: UUID, file_path: str, db: Session) -> None:
     copyfile = db.query(File).filter(File.id == file_id).first()
     if not copyfile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Source file not found")
+                            detail="Source file not found.")
+    if copyfile.owner_id != user_id and copyfile.is_public is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Bad access.")
 
     # Begin a transaction for database operations
     try:
         # Create a copy of the file metadata with a new ID and path
         new_file = copyfile.copy()
         new_file.path = file_path
+        new_file.owner_id = user_id
         db.add(new_file)
 
         # Construct source and destination file paths
@@ -131,34 +140,36 @@ def copy_file(file_id: UUID, file_path: str, db: Session) -> None:
                             detail=f"Failed to copy file: {e}")
 
 
-def get_file_metadata_by_id(file_id: UUID, db: Session) -> Union[File, None]:
+def get_file_metadata_by_id(file_id: UUID, user_id: UUID, db: Session) -> Union[File, None]:
     """
     Get file metadata from the database by ID.
 
     Args:
         file_id (UUID): ID of the file to be searched.
+        user_id (UUID): ID of the user who requested metadata of the file.
         db (Session): The database session.
 
     Returns:
         File: The file metadata if found, None otherwise.
     """
-    try:
-        file_metadata = db.query(File).get(file_id)
-        if not file_metadata:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail="File not found.")
-        return file_metadata
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to search for the file metadata: {e}")
+    file_metadata = db.query(File).get(file_id)
+    if not file_metadata:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="File not found.")
+    if file_metadata.owner_id != user_id and file_metadata.is_public is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Bad access.")
+    return file_metadata
 
 
-def update_file_metadata(file_id: UUID, metadata: FileUpdate, db: Session) -> None:
+def update_file_metadata(file_id: UUID, user_id: UUID,
+                         metadata: FileUpdate, db: Session) -> None:
     """
         Update file metadata in the database.
 
         Args:
             file_id (UUID): ID of the file to be updated.
+            user_id (UUID): ID of the user who requested file update.
             metadata (FileUpdate): Updated metadata.
             db (Session): The database session.
     """
@@ -166,17 +177,21 @@ def update_file_metadata(file_id: UUID, metadata: FileUpdate, db: Session) -> No
     if not file:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="File not found.")
+    if file.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Bad access.")
 
     for key, value in metadata.dict().items():
         setattr(file, key, value)
 
 
-def delete_file_metadata(file_id: UUID, db: Session) -> Path:
+def delete_file_metadata(file_id: UUID, user_id: UUID, db: Session) -> Path:
     """
         Delete file metadata from the database.
 
         Args:
             file_id (UUID): ID of the file to be deleted.
+            user_id (UUID): ID of the user who requested file removal.
             db (Session): The database session.
 
         Returns:
@@ -186,6 +201,9 @@ def delete_file_metadata(file_id: UUID, db: Session) -> Path:
     if not file:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="File not found.")
+    if file.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Bad access.")
     file_path = construct_file_path(user_id=file.owner_id, file_id=file.id,
                                     file_path=file.path, file_type=file.mime_type)
     db.delete(file)
