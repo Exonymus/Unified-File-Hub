@@ -1,4 +1,6 @@
 from datetime import timedelta
+
+import sqlalchemy
 from fastapi import APIRouter
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -11,15 +13,37 @@ import security.token as security
 import cruds.user as crud
 from database import get_db
 from env import JWT_EXPIRE
-from schemas import User, Token
+from schemas import User, UserMetadata, Token
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/signin")
 
 router = APIRouter()
 
 
-@router.post("/token")
+@router.post('/signup', summary="Create new user", status_code=status.HTTP_201_CREATED)
+async def create_user(metadata: UserMetadata = Depends(), db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.create_user(metadata=metadata, db=db)
+        db.commit()
+    except sqlalchemy.exc.IntegrityError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"Username or email is already in use.")
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create user: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.post("/signin")
 async def login_for_access_token(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         db: Session = Depends(get_db)
@@ -40,7 +64,8 @@ async def login_for_access_token(
     except HTTPException as http_err:
         raise http_err
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create access token: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create access token: {str(e)}")
 
 
 @router.get("/get_info", response_model=User)
@@ -65,7 +90,8 @@ async def edit_user(
         raise http_err
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to edit user: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to edit user: {str(e)}")
     finally:
         db.close()
 

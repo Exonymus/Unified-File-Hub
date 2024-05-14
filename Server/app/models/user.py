@@ -24,8 +24,3 @@ class User(Base):
     connections_G = relationship("GDConn", back_populates="user")
     connections_O = relationship("ODConn", back_populates="user")
     connections_F = relationship("FTPConn", back_populates="user")
-
-    def to_json(self):
-        return {"id": self.id, "username": self.username, "email": self.email,
-                "on_active": self.on_active, "is_banned": self.is_banned, "is_actual": self.is_actual,
-                "role": self.role}

@@ -9,6 +9,6 @@ class Role(Base):
     __tablename__ = 'roles'
 
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
-    role_name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
 
     users = relationship("User", back_populates="role")

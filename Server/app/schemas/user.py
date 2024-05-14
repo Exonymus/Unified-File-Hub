@@ -26,3 +26,11 @@ class User(BaseModel):
 class UserInDB(User):
     reg_date: datetime
     hashed_password: str
+
+
+class UserMetadata(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    secret_num: int
+    secret_answer: str

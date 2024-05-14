@@ -16,11 +16,11 @@ def init_roles():
         existing_roles = db.query(Role).all()
         if not existing_roles:
             # Add 'user' role
-            user_role = Role(role_name="user")
+            user_role = Role(name="user")
             db.add(user_role)
 
             # Add 'admin' role
-            admin_role = Role(role_name="admin")
+            admin_role = Role(name="admin")
             db.add(admin_role)
 
             db.commit()

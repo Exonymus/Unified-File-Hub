@@ -11,7 +11,7 @@ from schemas import User, TokenData
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/signin")
 
 
 def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):

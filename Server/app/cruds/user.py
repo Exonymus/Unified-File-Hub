@@ -1,16 +1,45 @@
+from datetime import datetime, timezone, timedelta
 from typing import Union
-
 from fastapi import HTTPException, status
-from uuid import UUID
+from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import EmailStr
 
-from models import User as UserTable
-from schemas import UserInDB
+from models import User as UserTable, Role
+from schemas import UserInDB, UserMetadata
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def create_user(metadata: UserMetadata, db: Session) -> None:
+    """
+        Create user metadata in the database.
+
+        Args:
+            metadata (UserMetadata): Metadata of the user to be created.
+            db (Session): The database session.
+    """
+    try:
+        # Create a new User object with the provided metadata
+        user = UserTable(
+            id=uuid4(),
+            role_id=db.query(Role).filter(Role.name == "user").first().id,
+            username=metadata.username,
+            email=metadata.email,
+            secret_num=metadata.secret_num,
+            secret_answer=get_password_hash(metadata.secret_answer),
+            hashed_password=get_password_hash(metadata.password),
+            reg_date=datetime.now(tz=timezone(timedelta(hours=3))),
+            is_banned=False
+        )
+
+        # Add the new user to the session
+        db.add(user)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create user: {e}")
 
 
 def update_user(user_id: UUID, email: EmailStr, db: Session) -> None:
@@ -99,4 +128,5 @@ def authenticate_user(username: str, password: str, db: Session) -> Union['UserI
     except HTTPException as http_err:
         raise http_err
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to authenticate user: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to authenticate user: {str(e)}")
