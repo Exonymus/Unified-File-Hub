@@ -88,3 +88,6 @@ compile_commands.json
 *.swp
 debug/
 saves/
+.DS_Store
+.idea
+__pycache__
