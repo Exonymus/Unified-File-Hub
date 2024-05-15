@@ -70,40 +70,40 @@ User *Database::SignInUser(QString username, QString pass, QString mode)
 
         if (user_data.next())
         {
-            QString email = user_data.value("email").toString();
-            int on_active = user_data.value("on_active").toInt();
-            int is_banned = user_data.value("is_banned").toInt();
-            int is_actual = user_data.value("is_actual").toInt();
-            int role = user_data.value("role").toInt();
+//            QString email = user_data.value("email").toString();
+//            int on_active = user_data.value("on_active").toInt();
+//            int is_banned = user_data.value("is_banned").toInt();
+//            int is_actual = user_data.value("is_actual").toInt();
+//            int role = user_data.value("role").toInt();
 
-            User::Data data =
-            {
-                id,
-                username,
-                email,
-                storedPassHash,
-                on_active,
-                is_banned,
-                is_actual,
-                role
-            };
+//            User::Data data =
+//            {
+//                id,
+//                username,
+//                email,
+//                storedPassHash,
+//                on_active,
+//                is_banned,
+//                is_actual,
+//                role
+//            };
 
-            if (data.is_actual != 1) {
-                QMessageBox::critical(0, "", "⚠ Sign in failed!\n\nUser credentials expired! "
-                                             "Please try signing in online.");
-                return nullptr;
-            }
+//            if (data.is_actual != 1) {
+//                QMessageBox::critical(0, "", "⚠ Sign in failed!\n\nUser credentials expired! "
+//                                             "Please try signing in online.");
+//                return nullptr;
+//            }
 
-            // Update local
-            SaveUserLocal(&data, mode);
+//            // Update local
+//            SaveUserLocal(&data, mode);
 
-            if (data.is_actual != 1) {
-                QMessageBox::critical(0, "", "⚠ Sign in failed!\n\nUser credentials expired! "
-                                             "Please try signing in online.");
-                return nullptr;
-            }
+//            if (data.is_actual != 1) {
+//                QMessageBox::critical(0, "", "⚠ Sign in failed!\n\nUser credentials expired! "
+//                                             "Please try signing in online.");
+//                return nullptr;
+//            }
 
-            return new User(data);
+            return nullptr;
         }
     }
 
@@ -153,32 +153,32 @@ User *Database::SignUpUser(QString username, QString email, QString pass)
         user_data.bindValue(":id", id);
         user_data.exec();
 
-        if (user_data.next())
-        {
-            User::Data data =
-            {
-                id,
-                user_data.value("username").toString(),
-                user_data.value("email").toString(),
-                user_data.value("password").toString(),
-                user_data.value("on_active").toInt(),
-                user_data.value("is_banned").toInt(),
-                user_data.value("is_actual").toInt(),
-                user_data.value("role").toInt()
-            };
+//        if (user_data.next())
+//        {
+//            User::Data data =
+//            {
+//                id,
+//                user_data.value("username").toString(),
+//                user_data.value("email").toString(),
+//                user_data.value("password").toString(),
+//                user_data.value("on_active").toInt(),
+//                user_data.value("is_banned").toInt(),
+//                user_data.value("is_actual").toInt(),
+//                user_data.value("role").toInt()
+//            };
 
-            // Update local
-            SaveUserLocal(&data, "online");
+//            // Update local
+//            SaveUserLocal(&data, "online");
 
-            remote.commit(); // Commit the transaction
+//            remote.commit(); // Commit the transaction
 
-            return new User(data);
-        }
+//            return new User(data);
+//        }
     }
 
-    remote.rollback(); // Rollback the transaction
-    QMessageBox::critical(0, "", "⚠ Sign up failed!\n\nError creating a new account occurred! "
-                                  "Please check your input.");
+//    remote.rollback(); // Rollback the transaction
+//    QMessageBox::critical(0, "", "⚠ Sign up failed!\n\nError creating a new account occurred! "
+//                                  "Please check your input.");
 
     return nullptr;
 }
@@ -196,71 +196,71 @@ void Database::SaveUserLocal(User::Data *data, QString mode) {
     if (user_data.next())
     {
         // User saved, data differs
-        if  (user_data.value("username").toString() != data->username ||
-             user_data.value("email").toString() != data->email ||
-             user_data.value("password").toString() != data->pass ||
-             user_data.value("on_active").toInt() != data->on_active ||
-             user_data.value("is_banned").toInt() != data->is_banned ||
-             user_data.value("is_actual").toInt() != data->is_actual ||
-             user_data.value("role").toInt() != data->role) {
+//        if  (user_data.value("username").toString() != data->username ||
+//             user_data.value("email").toString() != data->email ||
+//             user_data.value("password").toString() != data->pass ||
+//             user_data.value("on_active").toInt() != data->on_active ||
+//             user_data.value("is_banned").toInt() != data->is_banned ||
+//             user_data.value("is_actual").toInt() != data->is_actual ||
+//             user_data.value("role").toInt() != data->role) {
 
-            if (mode == "online") {
-                QString update_query = "UPDATE users "
-                                       "SET username = :username, email = :email, password = :password, "
-                                       "on_active = 1, is_banned = 0, is_actual = 1, role = 3 "
-                                       "WHERE id = :id";
+//            if (mode == "online") {
+//                QString update_query = "UPDATE users "
+//                                       "SET username = :username, email = :email, password = :password, "
+//                                       "on_active = 1, is_banned = 0, is_actual = 1, role = 3 "
+//                                       "WHERE id = :id";
 
-                QSqlQuery updateSavedUser(local);
-                updateSavedUser.prepare(update_query);
-                updateSavedUser.bindValue(":username", data->username);
-                updateSavedUser.bindValue(":email", data->email);
-                updateSavedUser.bindValue(":password", data->pass);
-                updateSavedUser.bindValue(":id", data->id);
+//                QSqlQuery updateSavedUser(local);
+//                updateSavedUser.prepare(update_query);
+//                updateSavedUser.bindValue(":username", data->username);
+//                updateSavedUser.bindValue(":email", data->email);
+//                updateSavedUser.bindValue(":password", data->pass);
+//                updateSavedUser.bindValue(":id", data->id);
 
-                updateSavedUser.exec();
-            } else if (mode == "offline") {
-                data->is_actual = 0;
-                QString update_query = "UPDATE users "
-                                       "SET is_actual = :is_actual "
-                                       "WHERE id = :id";
-                QSqlQuery updateSavedUser(local);
-                updateSavedUser.prepare(update_query);
-                updateSavedUser.bindValue(":is_actual", data->is_actual);
-                updateSavedUser.bindValue(":id", data->id);
-                updateSavedUser.exec();
-            }
-            return;
+//                updateSavedUser.exec();
+//            } else if (mode == "offline") {
+//                data->is_actual = 0;
+//                QString update_query = "UPDATE users "
+//                                       "SET is_actual = :is_actual "
+//                                       "WHERE id = :id";
+//                QSqlQuery updateSavedUser(local);
+//                updateSavedUser.prepare(update_query);
+//                updateSavedUser.bindValue(":is_actual", data->is_actual);
+//                updateSavedUser.bindValue(":id", data->id);
+//                updateSavedUser.exec();
+//            }
+//            return;
 
-        } else {
-            // User saved, data the same
-            return;
-        }
+//        } else {
+//            // User saved, data the same
+//            return;
+//        }
 
     } else {
         // No user saved, adding one to local
-        if (mode == "online") {
-            QString query = "INSERT INTO users (id, username, email, password, on_active, is_banned, is_actual, role) "
-                            "VALUES (:id, :username, :email, :password, 1, 0, 1, 3)";
+//        if (mode == "online") {
+//            QString query = "INSERT INTO users (id, username, email, password, on_active, is_banned, is_actual, role) "
+//                            "VALUES (:id, :username, :email, :password, 1, 0, 1, 3)";
 
-            QSqlQuery addUser(local);
-            addUser.prepare(query);
-            addUser.bindValue(":id", data->id);
-            addUser.bindValue(":username", data->username);
-            addUser.bindValue(":email", data->email);
-            addUser.bindValue(":password", data->pass);
+//            QSqlQuery addUser(local);
+//            addUser.prepare(query);
+//            addUser.bindValue(":id", data->id);
+//            addUser.bindValue(":username", data->username);
+//            addUser.bindValue(":email", data->email);
+//            addUser.bindValue(":password", data->pass);
 
-            addUser.exec();
-        } else if (mode == "offline") {
-            data->is_actual = 0;
-            QString update_query = "UPDATE users "
-                                   "SET is_actual = :is_actual "
-                                   "WHERE id = :id";
-            QSqlQuery updateSavedUser(local);
-            updateSavedUser.prepare(update_query);
-            updateSavedUser.bindValue(":is_actual", data->is_actual);
-            updateSavedUser.bindValue(":id", data->id);
-            updateSavedUser.exec();
-        }
+//            addUser.exec();
+//        } else if (mode == "offline") {
+//            data->is_actual = 0;
+//            QString update_query = "UPDATE users "
+//                                   "SET is_actual = :is_actual "
+//                                   "WHERE id = :id";
+//            QSqlQuery updateSavedUser(local);
+//            updateSavedUser.prepare(update_query);
+//            updateSavedUser.bindValue(":is_actual", data->is_actual);
+//            updateSavedUser.bindValue(":id", data->id);
+//            updateSavedUser.exec();
+//        }
 
         return;
     }
@@ -318,7 +318,7 @@ QList<File> *Database::getFiles(QString uploader)
         };
 
 
-        File newFile = File(data, files_data.value("data").toByteArray());
+        File newFile = File(data/*, files_data.value("data").toByteArray()*/);
 
         files->append(newFile);
     }
@@ -370,7 +370,7 @@ bool Database::uploadFile(File file_to_upload)
     add_file.bindValue(":uploader_name", data["Uploader"].toString());
     add_file.bindValue(":doc_type", data["Type"].toString());
     add_file.bindValue(":is_public", data["Public"].toInt());
-    add_file.bindValue(":data", file_to_upload.getBlob());
+    //add_file.bindValue(":data", file_to_upload.getBlob());
 
     return add_file.exec();
 }

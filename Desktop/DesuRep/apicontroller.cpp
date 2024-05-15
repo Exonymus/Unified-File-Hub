@@ -9,128 +9,111 @@ ApiController::ApiController(QObject *parent) : QObject(parent)
     connect(networkManager, &QNetworkAccessManager::finished, this, &ApiController::onRequestFinished);
 }
 
-void ApiController::onCopyFileFinished(QNetworkReply *reply)
-{
-    handleApiResponse("Copy File", reply);
-}
-
-void ApiController::onDeleteFileFinished(QNetworkReply *reply)
-{
-    handleApiResponse("Delete File", reply);
-}
-
-void ApiController::onUpdateFileFinished(QNetworkReply *reply)
-{
-    handleApiResponse("Update File", reply);
-}
-
-void ApiController::onGetUserFilesFinished(QNetworkReply *reply, QList<File> &files)
+void ApiController::handleApiResponse(const QString &operation, QNetworkReply *reply)
 {
     if (reply->error() == QNetworkReply::NoError)
     {
-        QByteArray responseData = reply->readAll();
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-
-        if (jsonDoc.isObject())
-        {
-            QJsonObject jsonObject = jsonDoc.object();
-
-            if (jsonObject.contains("data"))
-            {
-                processFileData(jsonObject.value("data").toObject(), files);
-            }
-        }
-
-        emit filesUpdated();
+        emit refreshDesuFiles();
     }
     else
     {
-        handleNetworkError("Get User Files", reply);
-        return;
+        handleNetworkError(operation, reply);
     }
 
     reply->deleteLater();
 }
 
-void ApiController::processFileData(const QJsonObject& dataObject, QList<File> &files)
+void ApiController::handleNetworkError(const QString &operation, QNetworkReply *reply)
 {
-    for (auto it = dataObject.begin(); it != dataObject.end(); ++it)
-    {
-        if (it.value().isObject())
-        {
-            QJsonObject fileObject = it.value().toObject();
-
-            if (fileObject.contains("id") && fileObject.contains("publication_name"))
-            {
-                File newFile = createFileObject(fileObject);
-                files.append(newFile);
-            }
-        }
-    }
+    qDebug()<<"|----- API REQUEST ERROR ----->";
+    qDebug() << "↳ Requester: " << operation;
+    qDebug() << "↳ Error code: " << reply->error();
+    qDebug() << "↳ Server response: " << reply->readAll();
 }
 
-File ApiController::createFileObject(const QJsonObject& fileObject)
+void ApiController::onRequestFinished(QNetworkReply *reply)
 {
-    QJsonObject data =
-    {
-        {"id", fileObject["id"].toInt()},
-        {"Name", fileObject["publication_name"].toString()},
-        {"Type", fileObject["doc_type"].toString()},
-        {"Path", fileObject["folder_path"].toString()},
-        {"Description", fileObject["description"].toString()},
-        {"Author", fileObject["author_name"].toString()},
-        {"Uploader", fileObject["uploader_name"].toString()},
-        {"UploadDate", fileObject["upload_date"].toString().replace("T"," ")},
-        {"Theme", fileObject["theme"].toString()},
-        {"DownloadUrl", "http://desurep.lol/download_file/?id=" + fileObject["download_id"].toString()},
-        {"Public", fileObject["is_public"].toBool()},
-        {"Size", fileObject["file_size"].toDouble() / (1024 * 1024)}
-    };
-
-    return File(data, QByteArray());
+    // Обработка других запросов, если необходимо
+    Q_UNUSED(reply);
 }
 
-void ApiController::onAuthenticateFinished(QNetworkReply *reply, const QString &username, User &session)
+void addTextPart(QHttpMultiPart* multiPart, const QString& name, const QString& value) {
+    QHttpPart part;
+    part.setHeader(QNetworkRequest::ContentDispositionHeader, "form-data; name=\"" + name + "\"");
+    part.setBody(value.toUtf8());
+    multiPart->append(part);
+}
+
+
+// Authenticating User and receiving token
+void ApiController::authenticate(const QString &username, const QString &password, User &session)
 {
-    if (reply->error() == QNetworkReply::NoError)
+    QUrl apiUrl(BASE_URL + "users/signin");
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+    // Prepare form data
+    QByteArray postData;
+    postData.append("username=" + username.toUtf8());
+    postData.append("&password=" + password.toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, postData);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, username, &session](){
+        onAuthenticateFinished(reply, session);
+    });
+}
+
+void ApiController::onAuthenticateFinished(QNetworkReply *reply, User &session)
+{
+    QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    if (statusCode.isValid())
     {
-
-        QByteArray responseData = reply->readAll();
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-
-        if (jsonDoc.isObject())
+        if (statusCode.toInt() == 200)
         {
-            QJsonObject jsonObject = jsonDoc.object();
+            QByteArray responseData = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
 
-            if (jsonObject.contains("is_auth"))
+            if (jsonDoc.isObject())
             {
-                if (jsonObject.value("is_auth").toBool() == true) {
-                    QUrl apiUrl(BASE_URL + "users/get_user_info");
-                    QUrlQuery query;
+                QJsonObject jsonObject = jsonDoc.object();
 
-                    query.addQueryItem("username", username);
-
-                    apiUrl.setQuery(query);
+                if (jsonObject.contains("access_token") && !jsonObject.value("access_token").toString().isEmpty())
+                {
+                    session.setTokenValue(jsonObject.value("access_token").toString());
+                    QUrl apiUrl(BASE_URL + "users/get_info");
 
                     QNetworkRequest request(apiUrl);
                     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                    request.setRawHeader(QByteArray("Authorization"),
+                                         QString("bearer %1").arg(session.getToken()).toUtf8());
 
-                    QNetworkReply *reply = networkManager->post(request, QByteArray());
 
-                    connect(reply, &QNetworkReply::finished, this, [this, reply, &session](){
-                        onGetUserInfoFinished(reply, session);
+                    QNetworkReply *userInfoReply = networkManager->get(request);
+
+                    connect(userInfoReply, &QNetworkReply::finished, this, [this, userInfoReply, &session](){
+                        onGetUserInfoFinished(userInfoReply, session);
                     });
-                } else {
-                    emit authFailed("User credentials invalid!");
-                };
+                    reply->deleteLater();
+                    return;
+                }
             }
+            emit authFailed("Unknown error occured!");
+            handleNetworkError("Auth User", reply);
         }
-    }
-    else
-    {
-        emit authFailed("Unknown error occured!");
-        handleNetworkError("Auth User", reply);
-        return;
+        else if (statusCode.toInt() == 403)
+        {
+            emit authFailed("This account is banned!");
+        }
+        else if (statusCode.toInt() == 401 || statusCode.toInt() == 404)
+        {
+            emit authFailed("User credentials invalid!");
+        }
+        else
+        {
+            emit authFailed("Unknown error occured!");
+            handleNetworkError("Auth User", reply);
+        }
     }
 
     reply->deleteLater();
@@ -138,30 +121,26 @@ void ApiController::onAuthenticateFinished(QNetworkReply *reply, const QString &
 
 void ApiController::onGetUserInfoFinished(QNetworkReply *reply, User &session)
 {
-    reply->deleteLater();
-    if (reply->error() == QNetworkReply::NoError)
-    {
-        QByteArray responseData = reply->readAll();
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+    QByteArray responseData = reply->readAll();
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
 
-        if (jsonDoc.isObject())
-        {
-            QJsonObject jsonObject = jsonDoc.object();
-
-            if (jsonObject.contains("data"))
-            {
-                processUserData(jsonObject.value("data").toObject(), session);
-            }
-        }
-
-        emit authSucceed();
-    }
-    else
-    {
-        emit authFailed("Unknown error occured!");
+    if (reply->error() != QNetworkReply::NoError || !jsonDoc.isObject()) {
+        emit authFailed("Unknown error occurred!");
         handleNetworkError("Get User Info", reply);
+        reply->deleteLater();
         return;
     }
+
+    QJsonObject jsonObject = jsonDoc.object();
+    if (!jsonObject.contains("id") || jsonObject.value("id").toString().isEmpty()) {
+        emit authFailed("Unknown error occurred!");
+        handleNetworkError("Get User Info", reply);
+        reply->deleteLater();
+        return;
+    }
+
+    session.setData(createUserDataObject(jsonObject));
+    emit authSucceed();
 
     reply->deleteLater();
 }
@@ -186,23 +165,39 @@ User::Data ApiController::createUserDataObject(const QJsonObject& userObject)
 {
     User::Data data =
     {
-        userObject["id"].toInt(),
+        QUuid(userObject["id"].toString()),
         userObject["username"].toString(),
         userObject["email"].toString(),
+        userObject["secret_num"].toInt(),
+        userObject["secret_answer"].toString(),
         "passwordHash",
-        int(userObject["on_active"].toBool()),
         int(userObject["is_banned"].toBool()),
-        int(userObject["is_actual"].toBool()),
-        userObject["role"].toInt()
     };
 
     return data;
 }
 
-void ApiController::onRequestFinished(QNetworkReply *reply)
+
+// Editing User metadata in UFH Storage
+void ApiController::editUser(User &session, const QString &email)
 {
-    // Обработка других запросов, если необходимо
-    Q_UNUSED(reply);
+    QUrl apiUrl(BASE_URL + "users/edit");
+    QUrlQuery query;
+
+    query.addQueryItem("email", email);
+
+    apiUrl.setQuery(query);
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, QByteArray());
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onEditUserFinished(reply);
+    });
 }
 
 void ApiController::onEditUserFinished(QNetworkReply *reply)
@@ -215,127 +210,105 @@ void ApiController::onEditUserFinished(QNetworkReply *reply)
     {
         emit userEditFailed();
         handleNetworkError("Edit User", reply);
-        return;
     }
 
     reply->deleteLater();
 }
 
 
-void ApiController::handleApiResponse(const QString &operation, QNetworkReply *reply)
+// Getting User files in UFH Storage
+void ApiController::getUserFiles(User &session, QList<File> &files)
 {
-    if (reply->error() == QNetworkReply::NoError)
+    files.clear();
+
+    QUrl apiUrl(BASE_URL + "files/get_user_files");
+    QNetworkRequest request(apiUrl);
+
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, &files]() {
+        onGetUserFilesFinished(reply, files);
+    });
+}
+
+void ApiController::onGetUserFilesFinished(QNetworkReply *reply, QList<File> &files)
+{
+    QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    if (statusCode.isValid())
     {
-        emit refreshDesuFiles();
+        if (statusCode.toInt() == 200)
+        {
+            QByteArray responseData = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+
+            if (jsonDoc.isObject())
+            {
+                QJsonObject jsonObject = jsonDoc.object();
+
+                if (jsonObject.contains("data"))
+                {
+                    processFileData(jsonObject.value("data").toObject(), files);
+                }
+            }
+
+            emit filesUpdated();
+        }
+        else
+        {
+            handleNetworkError("Get User Files", reply);
+        }
     }
     else
     {
-        handleNetworkError(operation, reply);
+        handleNetworkError("Get User Files", reply);
     }
 
     reply->deleteLater();
 }
 
-void ApiController::handleNetworkError(const QString &operation, QNetworkReply *reply)
+void ApiController::processFileData(const QJsonObject& dataObject, QList<File> &files)
 {
-    qDebug() << operation << " File Error Code: " << reply->error();
-    qDebug() << operation << " File Error String: " << reply->errorString();
-    qDebug() << "Server Response: " << reply->readAll();
+    for (auto it = dataObject.begin(); it != dataObject.end(); ++it)
+    {
+        if (it.value().isObject())
+        {
+            QJsonObject fileObject = it.value().toObject();
+
+            if (fileObject.contains("id") && !fileObject.value("id").toString().isEmpty())
+            {
+                File newFile = createFileObject(fileObject);
+                files.append(newFile);
+            }
+        }
+    }
 }
 
-void ApiController::authenticate(const QString &username, const QString &password, User &session)
+File ApiController::createFileObject(const QJsonObject& fileObject)
 {
-    QUrl apiUrl(BASE_URL + "users/auth_user");
-    QUrlQuery query;
+    QJsonObject data =
+    {
+        {"id", fileObject["id"].toString()},
+        {"name", fileObject["name"].toString()},
+        {"path", fileObject["path"].toString()},
+        {"mime_type", fileObject["mime_type"].toString()},
+        {"description", fileObject["description"].toString()},
+        {"author", fileObject["author"].toString()},
+        {"theme", fileObject["theme"].toString()},
+        {"is_public", fileObject["is_public"].toBool()},
+        {"owner_id", fileObject["owner_id"].toString()},
+        {"upload_date", fileObject["upload_date"].toString().replace("T"," ")},
+        {"size", fileObject["size"].toDouble() / (1024 * 1024)}
+    };
 
-    query.addQueryItem("username", username);
-    query.addQueryItem("password", password);
-
-    apiUrl.setQuery(query);
-
-    QNetworkRequest request(apiUrl);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply, username, &session](){
-        onAuthenticateFinished(reply, username, session);
-    });
-}
-
-void ApiController::copyFile(const QString &username, const QString &fileId, const QString &folderPath)
-{
-    QUrl apiUrl(BASE_URL + "files/copy_file");
-    QUrlQuery query;
-
-    query.addQueryItem("file_id", fileId);
-    query.addQueryItem("folder_path", folderPath);
-    query.addQueryItem("username", username);
-
-    apiUrl.setQuery(query);
-
-    QNetworkRequest request(apiUrl);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply](){
-        onCopyFileFinished(reply);
-    });
-}
-
-void ApiController::deleteFile(const QString &fileId)
-{
-    QUrl apiUrl(BASE_URL + "files/delete_file");
-    QUrlQuery query;
-
-    query.addQueryItem("file_id", fileId);
-
-    apiUrl.setQuery(query);
-
-    QNetworkRequest request(apiUrl);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        onDeleteFileFinished(reply);
-    });
+    return File(data);
 }
 
 
-void ApiController::updateFile(const QJsonObject &metaData)
-{
-    QUrl apiUrl(BASE_URL + "files/update_file");
-    QUrlQuery query;
-
-    query.addQueryItem("file_id", QString::number(metaData["id"].toInt()));
-    query.addQueryItem("author_name", metaData["Author"].toString());
-    query.addQueryItem("publication_name", metaData["Name"].toString());
-    query.addQueryItem("theme", metaData["Theme"].toString());
-    query.addQueryItem("publication_date", QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-    query.addQueryItem("description", metaData["Description"].toString());
-    query.addQueryItem("folder_path", metaData["Path"].toString());
-    query.addQueryItem("is_public", QString::number(metaData["Public"].toInt()));
-    apiUrl.setQuery(query);
-
-    QNetworkRequest request(apiUrl);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        onUpdateFileFinished(reply);
-    });
-}
-
-void addTextPart(QHttpMultiPart* multiPart, const QString& name, const QString& value) {
-    QHttpPart part;
-    part.setHeader(QNetworkRequest::ContentDispositionHeader, "form-data; name=\"" + name + "\"");
-    part.setBody(value.toUtf8());
-    multiPart->append(part);
-}
-
+// Uploading User file to UFH Storage
 //void ApiController::uploadFile(const File &uploadFile)
 //{
 //    QJsonObject metaData = uploadFile.getMetaData();
@@ -404,7 +377,7 @@ void ApiController::uploadFile(const File &uploadFile)
                        QVariant("form-data; name=\"input_data\"; filename=\"" + fullFileName + "\""));
     qDebug() << fullFileName;
     QBuffer *file = new QBuffer();
-    file->setData(uploadFile.getBlob());
+    //file->setData(uploadFile.getBlob());
     file->open(QIODevice::ReadOnly);
     filePart.setBodyDevice(file);
     file->setParent(multiPart);
@@ -454,43 +427,138 @@ void ApiController::uploadFile(const File &uploadFile)
 }
 
 
-void ApiController::getUserFiles(const QString &username, QList<File> &files)
+// Downloading User file from UFH Storage
+void ApiController::downloadFile(User &session, const QString &file_id, const QString &savePath)
 {
-    files.clear();
-
-    QUrl apiUrl(BASE_URL + "files/get_user_files_metadata");
-    QUrlQuery query;
-
-    query.addQueryItem("username", username);
-
-    apiUrl.setQuery(query);
+    QUrl apiUrl(BASE_URL + "files/download_file/" + file_id);
 
     QNetworkRequest request(apiUrl);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
 
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
+    QNetworkReply *reply = networkManager->get(request);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, &files]() {
-        onGetUserFilesFinished(reply, files);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, savePath](){
+        onDownloadFileFinished(reply, savePath);
     });
 }
 
-void ApiController::editUser(const QString &id, const QString &email)
+void ApiController::onDownloadFileFinished(QNetworkReply *reply, const QString &savePath)
 {
-    QUrl apiUrl(BASE_URL + "users/edit_user");
+    if (reply->error() == QNetworkReply::NoError)
+    {
+        if (!savePath.isEmpty())
+        {
+            QFile file(savePath);
+
+            if (file.open(QIODevice::WriteOnly))
+            {
+                file.write(reply->readAll());
+                file.close();
+                emit downloadSucceed();
+            }
+            else
+            {
+                emit downloadFailed("Failed to open the file for writing.");
+            }
+        }
+    }
+    else
+    {
+        emit downloadFailed("Failed to fetch the file data. Please, check up your Internet connection.");
+        handleNetworkError("Download File", reply);
+    }
+
+    reply->deleteLater();
+}
+
+
+// Copy User file in UFH Storage
+void ApiController::copyFile(User &session, const QString &fileId, const QString &file_path)
+{
+    QUrl apiUrl(BASE_URL + "files/copy_file");
+
     QUrlQuery query;
 
-    query.addQueryItem("user_id", id);
-    query.addQueryItem("email", email);
+    query.addQueryItem("file_id", fileId);
+    query.addQueryItem("file_path", file_path);
 
     apiUrl.setQuery(query);
 
     QNetworkRequest request(apiUrl);
+
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, QByteArray());
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply](){
+        onCopyFileFinished(reply);
+    });
+}
+
+void ApiController::onCopyFileFinished(QNetworkReply *reply)
+{
+    handleApiResponse("Copy File", reply);
+    reply->deleteLater();
+}
+
+
+// Delete User file in UFH Storage
+void ApiController::deleteFile(User &session, const QString &fileId)
+{
+    qDebug() << fileId;
+    QUrl apiUrl(BASE_URL + "files/delete_file/" + fileId);
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
 
     QNetworkReply *reply = networkManager->post(request, QByteArray());
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        onEditUserFinished(reply);
+        onDeleteFileFinished(reply);
     });
+}
+
+void ApiController::onDeleteFileFinished(QNetworkReply *reply)
+{
+    handleApiResponse("Delete File", reply);
+    reply->deleteLater();
+}
+
+
+// Update User file in UFH Storage
+void ApiController::updateFile(User &session, const QJsonObject &metaData)
+{
+    QUrl apiUrl(BASE_URL + "files/update_file/" + metaData["id"].toString());
+    QUrlQuery query;
+
+    query.addQueryItem("name", metaData["name"].toString());
+    query.addQueryItem("path", metaData["path"].toString());
+    query.addQueryItem("description", metaData["description"].toString());
+    query.addQueryItem("author", metaData["author"].toString());
+    query.addQueryItem("theme", metaData["theme"].toString());
+    query.addQueryItem("is_public", QString::number(metaData["is_public"].toInt()));
+    apiUrl.setQuery(query);
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, QByteArray());
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onUpdateFileFinished(reply);
+    });
+}
+
+void ApiController::onUpdateFileFinished(QNetworkReply *reply)
+{
+    handleApiResponse("Update File", reply);
+    reply->deleteLater();
 }

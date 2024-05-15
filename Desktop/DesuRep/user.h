@@ -10,36 +10,51 @@ class User
 public:
     struct Data
     {
-        int id;
+        QUuid id;
         QString username;
         QString email;
-        QString pass;
-        int on_active;
+        int secret_num;
+        QString secret_answer;
+        QString password;
         int is_banned;
-        int is_actual;
-        int role;
     };
 
-    User(const Data &data);
+    struct Token
+    {
+        QString value;
+        bool expired = false;
+    };
+
+
+    User(const Data &userData);
     User();
 
     ~User();
 
 public:
-    int getId() const { return data.id; }
+    QUuid getId() const { return data.id; }
     QString getUsername() const { return data.username; }
-
-    User::Data *getData() { return &data;  }
-
     QString getEmail() const { return data.email; }
+    int getSecretNum() const { return data.secret_num; }
+    QString getSecretAnswer() const { return data.secret_answer; }
 
     void setEmail(QString newEmail) { data.email = newEmail; }
-    void setPassword(QString passHash) { data.pass = passHash; }
+    void setPassword(QString passHash) { data.password = passHash; }
 
+
+    QString getToken() const { return token.value; }
+    bool tokenExpired() const { return token.expired; }
+
+    void setTokenValue(QString newToken) { token.value = newToken; }
+    void setTokenExpired() { token.expired = true; }
+
+
+    User::Data *getData() { return &data;  }
     void setData(User::Data set_data);
 
 private:
     Data data;
+    Token token;
 };
 
 #endif // USER_H

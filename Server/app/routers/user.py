@@ -56,6 +56,9 @@ async def login_for_access_token(
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        if user.is_banned:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Banned user")
         access_token_expires = timedelta(minutes=int(JWT_EXPIRE))
         access_token = security.create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires

@@ -65,7 +65,7 @@ async def get_user_files(
         db: Session = Depends(get_db)):
     try:
         files = crud.get_user_files_metadata(user_id=current_user.id, db=db)
-        return {"data": [file.to_json() for file in files]}
+        return {"data": {index: file.to_json() for index, file in enumerate(files)}}
     except HTTPException as http_err:
         raise http_err
     except Exception as e:
@@ -78,7 +78,11 @@ async def update_file(
         file_id: UUID, metadata: FileUpdate = Depends(), db: Session = Depends(get_db)):
     try:
         db.begin()
-        crud.update_file_metadata(file_id=file_id, user_id=current_user.id, metadata=metadata, db=db)
+        crud.update_file_metadata(file_id=file_id, user_id=current_user.id,
+                                  metadata=metadata, db=db)
+        crud.remove_empty_directories(
+            root_path=(Path("/usr/src/app/files") / str(current_user.id) / "files")
+        )
         db.commit()
     except HTTPException as http_err:
         db.rollback()
@@ -100,6 +104,9 @@ async def delete_file(
         db.begin()
         file_path = crud.delete_file_metadata(file_id=file_id, user_id=current_user.id, db=db)
         os.remove(file_path)
+        crud.remove_empty_directories(
+            root_path=(Path("/usr/src/app/files") / str(current_user.id) / "files")
+        )
         db.commit()
     except HTTPException as http_err:
         db.rollback()

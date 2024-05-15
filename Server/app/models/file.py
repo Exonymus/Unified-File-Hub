@@ -39,7 +39,7 @@ class File(Base):
             "is_public": self.is_public,
             "owner_id": self.owner_id,
             "upload_date": self.upload_date,
-            "file_size":
+            "size":
                 os.path.getsize(f"/usr/src/app/files/{self.owner_id}/files/{self.path}"
                                 f"/{self.id}{mimetypes.guess_extension(self.mime_type)}")
         }

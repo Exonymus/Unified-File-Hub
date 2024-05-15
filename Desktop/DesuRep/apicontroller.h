@@ -13,6 +13,9 @@
 #include <QDebug>
 #include <QUuid>
 #include <QFile>
+#include <QFileDialog>
+#include <QDir>
+#include <QMessageBox>
 #include <QBuffer>
 #include <QHttpMultiPart>
 
@@ -31,33 +34,38 @@ public:
     void authenticate(const QString &username, const QString &password, User &session);
 
     // Метод для копирования файла
-    void copyFile(const QString &username, const QString &fileId, const QString &folderPath);
+    void copyFile(User &session, const QString &fileId, const QString &file_path);
 
     // Метод для удаления файла
-    void deleteFile(const QString &fileId);
+    void deleteFile(User &session, const QString &fileId);
 
     // Метод для обновления файла
-    void updateFile(const QJsonObject &metaData);
+    void updateFile(User &session, const QJsonObject &metaData);
 
-    // Метод для загрузки файла
+    // Метод для выгрузки файла
     void uploadFile(const File &uploadFile);
 
-    // Метод для получения файлов пользователя
-    void getUserFiles(const QString &username, QList<File> &files);
+    // Метод для загрузки файла
+    void downloadFile(User &session, const QString &file_id, const QString &savePath);
 
     // Метод для получения файлов пользователя
-    void editUser(const QString &id, const QString &email);
+    void getUserFiles(User &session, QList<File> &files);
+
+    // Метод для получения файлов пользователя
+    void editUser(User &session, const QString &email);
 
 private slots:
     void onCopyFileFinished(QNetworkReply *reply);
 
     void onDeleteFileFinished(QNetworkReply *reply);
 
+    void onDownloadFileFinished(QNetworkReply *reply, const QString &savePath);
+
     void onUpdateFileFinished(QNetworkReply *reply);
 
     void onGetUserFilesFinished(QNetworkReply *reply, QList<File> &files);
 
-    void onAuthenticateFinished(QNetworkReply *reply, const QString &username, User &session);
+    void onAuthenticateFinished(QNetworkReply *reply, User &session);
 
     void onGetUserInfoFinished(QNetworkReply *reply, User &session);
 
@@ -90,6 +98,9 @@ signals:
 
     void uploadSucceed();
     void uploadFailed();
+
+    void downloadSucceed();
+    void downloadFailed(const QString message);
 
     void filesUpdated();
 };

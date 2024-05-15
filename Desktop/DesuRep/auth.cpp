@@ -111,8 +111,8 @@ void AuthForm::on_onl_si_btn_clicked()
     QString pass = ui->onl_si_pass_input->text();
     QString passHash = Enhasher::hashPassword(pass);
 
-    windControl->session->setPassword(passHash);
     webApi->authenticate(username, pass, *windControl->session);
+    windControl->session->setPassword(passHash);
 }
 
 

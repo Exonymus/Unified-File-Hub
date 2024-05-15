@@ -86,6 +86,7 @@ compile_commands.json
 
 # AtH stuff
 *.swp
+*.log
 debug/
 saves/
 .DS_Store

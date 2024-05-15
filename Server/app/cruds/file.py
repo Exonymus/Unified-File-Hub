@@ -1,4 +1,5 @@
 import mimetypes
+import os
 import shutil
 from pathlib import Path
 from typing import List, Tuple, Union
@@ -42,6 +43,30 @@ def construct_file_path(user_id: UUID, file_id: UUID,
     file_full_path = user_directory_path / file_path / f"{file_id}{file_ext}"
 
     return file_full_path
+
+
+def remove_empty_directories(root_path: str) -> None:
+    """
+        Remove empty directories recursively starting from the root path.
+
+        Args:
+            root_path (str): The root directory path to start removing empty directories from.
+
+        Returns:
+            None
+    """
+    # Walk through the directory tree starting from the root_path
+    for dir_path, dir_names, _ in os.walk(root_path, topdown=False):
+        for dir_name in dir_names:
+            directory_path = os.path.join(dir_path, dir_name)
+
+            # Check if the directory is empty
+            if not os.listdir(directory_path):
+                try:
+                    # Remove the empty directory
+                    os.rmdir(directory_path)
+                except ...:
+                    pass
 
 
 def create_file_metadata(metadata: FileMetadata, user_id: UUID, db: Session) -> Tuple[UUID, str]:
@@ -181,6 +206,18 @@ def update_file_metadata(file_id: UUID, user_id: UUID,
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Bad access.")
 
+    # Move file data object to new path if it differs
+    if metadata.path != file.path:
+        old_path = construct_file_path(user_id=user_id, file_id=file_id,
+                                       file_path=file.path, file_type=file.mime_type)
+        new_path = construct_file_path(user_id=user_id, file_id=file_id,
+                                       file_path=metadata.path, file_type=file.mime_type)
+
+        # Ensure the destination directory exists
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+
+        shutil.move(old_path, new_path)
+
     for key, value in metadata.dict().items():
         setattr(file, key, value)
 
@@ -209,7 +246,6 @@ def delete_file_metadata(file_id: UUID, user_id: UUID, db: Session) -> Path:
     db.delete(file)
 
     return file_path
-
 
 # def get_all_public_files(db: Session):
 #     query = select(File).where(File.is_public == 1)

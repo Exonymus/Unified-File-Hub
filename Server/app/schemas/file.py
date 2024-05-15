@@ -17,6 +17,7 @@ class File(BaseModel):
 
 class FileUpdate(BaseModel):
     name: str
+    path: str
     description: str
     author: str
     theme: str
