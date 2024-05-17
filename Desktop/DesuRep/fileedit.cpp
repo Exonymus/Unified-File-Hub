@@ -9,13 +9,13 @@ FileEditDialog::FileEditDialog(QWidget *parent) : QDialog(parent)
     fileNameLineEdit = new QLineEdit(this);
     fileNameLineEdit->setMaximumWidth(260);
     fileNameLineEdit->setMinimumWidth(260);
-    formLayout->addRow("File Name:", fileNameLineEdit);
+    formLayout->addRow("Name:", fileNameLineEdit);
 
     // File Path
     filePathLineEdit = new QLineEdit(this);
     filePathLineEdit->setMaximumWidth(260);
     filePathLineEdit->setMinimumWidth(260);
-    formLayout->addRow("File Path:", filePathLineEdit);
+    formLayout->addRow("Path:", filePathLineEdit);
 
     // Description
     descriptionTextEdit = new QTextEdit(this);
@@ -59,24 +59,24 @@ FileEditDialog::FileEditDialog(QWidget *parent) : QDialog(parent)
 
 void FileEditDialog::setFileProperties(QJsonObject data)
 {
-    fileNameLineEdit->setText(data["Name"].toString());
-    filePathLineEdit->setText(data["Path"].toString());
-    descriptionTextEdit->setText(data["Description"].toString());
-    authorLineEdit->setText(data["Author"].toString());
-    themeLineEdit->setText(data["Theme"].toString());
-    isPublicCheckBox->setChecked(data["Public"].toBool());
+    fileNameLineEdit->setText(data["name"].toString());
+    filePathLineEdit->setText(data["path"].toString());
+    descriptionTextEdit->setText(data["description"].toString());
+    authorLineEdit->setText(data["author"].toString());
+    themeLineEdit->setText(data["theme"].toString());
+    isPublicCheckBox->setChecked(data["is_public"].toBool());
 }
 
 QJsonObject FileEditDialog::getEditedData() const
 {
     QJsonObject editedData;
 
-    editedData["Name"] = fileNameLineEdit->text();
-    editedData["Path"] = filePathLineEdit->text();
-    editedData["Description"] = descriptionTextEdit->toPlainText();
-    editedData["Author"] = authorLineEdit->text();
-    editedData["Theme"] = themeLineEdit->text();
-    editedData["Public"] = int(isPublicCheckBox->isChecked());
+    editedData["name"] = fileNameLineEdit->text();
+    editedData["path"] = filePathLineEdit->text();
+    editedData["description"] = descriptionTextEdit->toPlainText();
+    editedData["author"] = authorLineEdit->text();
+    editedData["theme"] = themeLineEdit->text();
+    editedData["is_public"] = int(isPublicCheckBox->isChecked());
 
     return editedData;
 }

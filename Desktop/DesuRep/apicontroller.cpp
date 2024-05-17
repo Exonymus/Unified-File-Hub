@@ -9,6 +9,25 @@ ApiController::ApiController(QObject *parent) : QObject(parent)
     connect(networkManager, &QNetworkAccessManager::finished, this, &ApiController::onRequestFinished);
 }
 
+void ApiController::checkApiAvailability(std::function<void(bool)> callback)
+{
+    QUrl apiUrl(BASE_URL);
+    QNetworkRequest request(apiUrl);
+
+    QNetworkReply *reply = networkManager->get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [ reply, callback]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            // API доступно
+            callback(true);
+        } else {
+            // API недоступно
+            callback(false);
+        }
+        reply->deleteLater();
+    });
+}
+
 void ApiController::handleApiResponse(const QString &operation, QNetworkReply *reply)
 {
     if (reply->error() == QNetworkReply::NoError)
@@ -25,6 +44,11 @@ void ApiController::handleApiResponse(const QString &operation, QNetworkReply *r
 
 void ApiController::handleNetworkError(const QString &operation, QNetworkReply *reply)
 {
+    if (reply->error() == QNetworkReply::AuthenticationRequiredError)
+    {
+        emit sessionExpired();
+    }
+
     qDebug()<<"|----- API REQUEST ERROR ----->";
     qDebug() << "↳ Requester: " << operation;
     qDebug() << "↳ Error code: " << reply->error();
@@ -45,8 +69,43 @@ void addTextPart(QHttpMultiPart* multiPart, const QString& name, const QString& 
 }
 
 
+// Creating new User account
+void ApiController::signUp(User &session, const QJsonObject &user_metadata)
+{
+    QJsonDocument jsonDoc(user_metadata);
+    QByteArray metaDataBytes = jsonDoc.toJson(QJsonDocument::Compact);
+
+    QUrl apiUrl(BASE_URL + "users/signup");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, metaDataBytes);
+
+    connect(reply, &QNetworkReply::finished, this, [ reply, &session, this, user_metadata](){
+        onSignUpFinished(reply, session, user_metadata);
+    });
+}
+
+void ApiController::onSignUpFinished(QNetworkReply *reply, User &session, const QJsonObject &user_metadata)
+{
+    if (reply->error() == QNetworkReply::NoError)
+    {
+        authenticate(session, user_metadata.value("username").toString(), user_metadata.value("password").toString());
+    }
+    else
+    {
+        handleNetworkError("Sign Up", reply);
+    }
+
+    reply->deleteLater();
+}
+
+
 // Authenticating User and receiving token
-void ApiController::authenticate(const QString &username, const QString &password, User &session)
+void ApiController::authenticate(User &session, const QString &username, const QString &password)
 {
     QUrl apiUrl(BASE_URL + "users/signin");
     QNetworkRequest request(apiUrl);
@@ -81,20 +140,9 @@ void ApiController::onAuthenticateFinished(QNetworkReply *reply, User &session)
                 if (jsonObject.contains("access_token") && !jsonObject.value("access_token").toString().isEmpty())
                 {
                     session.setTokenValue(jsonObject.value("access_token").toString());
-                    QUrl apiUrl(BASE_URL + "users/get_info");
-
-                    QNetworkRequest request(apiUrl);
-                    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-                    request.setRawHeader(QByteArray("Authorization"),
-                                         QString("bearer %1").arg(session.getToken()).toUtf8());
-
-
-                    QNetworkReply *userInfoReply = networkManager->get(request);
-
-                    connect(userInfoReply, &QNetworkReply::finished, this, [this, userInfoReply, &session](){
-                        onGetUserInfoFinished(userInfoReply, session);
-                    });
+                    getUserInfo(session);
                     reply->deleteLater();
+
                     return;
                 }
             }
@@ -117,6 +165,27 @@ void ApiController::onAuthenticateFinished(QNetworkReply *reply, User &session)
     }
 
     reply->deleteLater();
+}
+
+
+// Get User Info
+void ApiController::getUserInfo(User &session)
+{
+    QUrl apiUrl(BASE_URL + "users/get_info");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+
+    QNetworkReply *reply = networkManager->get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, &session](){
+        onGetUserInfoFinished(reply, session);
+    });
+
+    return;
 }
 
 void ApiController::onGetUserInfoFinished(QNetworkReply *reply, User &session)
@@ -143,22 +212,6 @@ void ApiController::onGetUserInfoFinished(QNetworkReply *reply, User &session)
     emit authSucceed();
 
     reply->deleteLater();
-}
-
-void ApiController::processUserData(const QJsonObject& dataObject, User &session)
-{
-    for (auto it = dataObject.begin(); it != dataObject.end(); ++it)
-    {
-        if (it.value().isObject())
-        {
-            QJsonObject userObject = it.value().toObject();
-
-            if (userObject.contains("id") && userObject.contains("username"))
-            {
-                session.setData(createUserDataObject(userObject));
-            }
-        }
-    }
 }
 
 User::Data ApiController::createUserDataObject(const QJsonObject& userObject)
@@ -309,116 +362,61 @@ File ApiController::createFileObject(const QJsonObject& fileObject)
 
 
 // Uploading User file to UFH Storage
-//void ApiController::uploadFile(const File &uploadFile)
-//{
-//    QJsonObject metaData = uploadFile.getMetaData();
-
-//    QNetworkAccessManager manager;
-//    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-
-//    QHttpPart filePart;
-//    QString fullFileName = metaData["Name"].toString() + '.' + File::getFileExtensionFromMimeType(metaData["Type"].toString());
-//    filePart.setHeader(QNetworkRequest::ContentDispositionHeader,
-//                       QVariant("form-data; name=\"input_data\"; filename=\"" + fullFileName + "\""));
-//    QBuffer *file = new QBuffer();
-//    file->setData(uploadFile.getBlob());
-//    file->open(QIODevice::ReadOnly);
-//    filePart.setBodyDevice(file);
-//    file->setParent(multiPart);
-//    multiPart->append(filePart);
-
-//    QUrl url(BASE_URL + "files/upload_file");
-//    QUrlQuery query;
-//    query.addQueryItem("download_id", QUuid::createUuid().toString().mid(1, 36));
-//    query.addQueryItem("filename", QUuid::createUuid().toString().mid(1, 36) + metaData["Name"].toString());
-//    query.addQueryItem("filename_full", fullFileName);
-//    query.addQueryItem("author_name", metaData["Author"].toString());
-//    query.addQueryItem("publication_name", metaData["Name"].toString());
-//    query.addQueryItem("theme", metaData["Theme"].toString());
-//    query.addQueryItem("publication_date", QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-//    query.addQueryItem("description", metaData["Description"].toString());
-//    query.addQueryItem("upload_date", QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss"));
-//    query.addQueryItem("uploader_name", metaData["Uploader"].toString());
-//    query.addQueryItem("doc_type", metaData["Type"].toString());
-//    query.addQueryItem("is_public", QString::number(metaData["Public"].toInt()));
-//    query.addQueryItem("folder_path", metaData["Path"].toString());
-//    url.setQuery(query);
-
-//    QNetworkRequest request(url);
-
-//    QNetworkReply *reply = manager.post(request, multiPart);
-//    multiPart->setParent(reply);
-
-//    QEventLoop loop;
-//    QObject::connect(reply, SIGNAL(finished()), &loop, SLOT(quit()));
-//    loop.exec();
-
-//    if (reply->error() == QNetworkReply::NoError) {
-//        emit uploadSucceed();
-//    } else {
-//        emit uploadFailed();
-//        handleNetworkError("Upload File", reply);
-//        return;
-//    }
-
-//    reply->deleteLater();
-//}
-
-void ApiController::uploadFile(const File &uploadFile)
+void ApiController::uploadFile(User &session, const File &uploadFile, QProgressBar *progressBar)
 {
-    QJsonObject dataToUpload = uploadFile.getMetaData();
-    QJsonObject metaData;
-    QNetworkAccessManager manager;
+    QJsonObject metaData = uploadFile.getMetaData();
+
     QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
 
+    // Adding file part
     QHttpPart filePart;
-    QString fullFileName = dataToUpload["Name"].toString() + '.' + File::getFileExtensionFromMimeType(dataToUpload["Type"].toString());
+    QString fullFileName = metaData["name"].toString() + '.' + File::getFileExtensionFromMimeType(metaData["mime_type"].toString());
     filePart.setHeader(QNetworkRequest::ContentDispositionHeader,
                        QVariant("form-data; name=\"input_data\"; filename=\"" + fullFileName + "\""));
-    qDebug() << fullFileName;
-    QBuffer *file = new QBuffer();
-    //file->setData(uploadFile.getBlob());
-    file->open(QIODevice::ReadOnly);
-    filePart.setBodyDevice(file);
-    file->setParent(multiPart);
+
+    QByteArray fileData = QByteArray::fromBase64(metaData["BLOB"].toString().toUtf8());
+    QBuffer *fileBuffer = new QBuffer();
+    fileBuffer->setData(fileData);
+    fileBuffer->open(QIODevice::ReadOnly);
+    filePart.setBodyDevice(fileBuffer);
+    fileBuffer->setParent(multiPart);
     multiPart->append(filePart);
 
-    metaData["download_id"] = QUuid::createUuid().toString().mid(1, 36);
-    metaData["filename"] = QUuid::createUuid().toString().mid(1, 36) + dataToUpload["Name"].toString();
-    metaData["filename_full"] = fullFileName;
-    metaData["author_name"] = dataToUpload["Author"].toString();
-    metaData["publication_name"] = dataToUpload["Name"].toString();
-    metaData["theme"] = dataToUpload["Theme"].toString();
-    metaData["publication_date"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-    metaData["uploader_name"] = dataToUpload["Uploader"].toString();
-    metaData["description"] = dataToUpload["Description"].toString();
-    metaData["upload_date"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-    metaData["doc_type"] = dataToUpload["Type"].toString();
-    metaData["is_public"] = QString::number(dataToUpload["Public"].toInt());
-    metaData["folder_path"] = dataToUpload["Path"].toString();
-
-    QJsonDocument jsonDocument(metaData);
-    QByteArray metaDataJson = jsonDocument.toJson();
-
+    // Adding metadata part
     QHttpPart metaDataPart;
-    metaDataPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/json"));
     metaDataPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"metadata\""));
-    metaDataPart.setBody(metaDataJson);
+    QJsonDocument jsonDoc(metaData);
+    QByteArray metaDataBytes = jsonDoc.toJson(QJsonDocument::Compact);
+    metaDataPart.setBody(metaDataBytes);
     multiPart->append(metaDataPart);
 
-    QUrl url(BASE_URL + "files/upload_file");
-    QNetworkRequest request(url);
+    QUrl apiUrl(BASE_URL + "files/upload_file");
 
-    QNetworkReply *reply = manager.post(request, multiPart);
+    QNetworkRequest request(apiUrl);
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, multiPart);
     multiPart->setParent(reply);
 
-    QEventLoop loop;
-    QObject::connect(reply, SIGNAL(finished()), &loop, SLOT(quit()));
-    loop.exec();
+    connect(reply, &QNetworkReply::uploadProgress, [=](qint64 bytesSent, qint64 bytesTotal)
+    {
+        progressBar->setMaximum(static_cast<int>(bytesTotal));
+        progressBar->setValue(static_cast<int>(bytesSent));
+    });
 
-    if (reply->error() == QNetworkReply::NoError) {
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onUploadFileFinished(reply);
+    });
+}
+
+void ApiController::onUploadFileFinished(QNetworkReply *reply)
+{
+    if (reply->error() == QNetworkReply::NoError)
+    {
         emit uploadSucceed();
-    } else {
+    } else
+    {
         emit uploadFailed();
         handleNetworkError("Upload File", reply);
     }
@@ -426,9 +424,8 @@ void ApiController::uploadFile(const File &uploadFile)
     reply->deleteLater();
 }
 
-
 // Downloading User file from UFH Storage
-void ApiController::downloadFile(User &session, const QString &file_id, const QString &savePath)
+void ApiController::downloadFile(User &session, const QString &file_id, const QString &savePath, QProgressBar *progressBar)
 {
     QUrl apiUrl(BASE_URL + "files/download_file/" + file_id);
 
@@ -438,6 +435,12 @@ void ApiController::downloadFile(User &session, const QString &file_id, const QS
                          QString("bearer %1").arg(session.getToken()).toUtf8());
 
     QNetworkReply *reply = networkManager->get(request);
+
+    connect(reply, &QNetworkReply::downloadProgress, [=](qint64 bytesReceived, qint64 bytesTotal)
+    {
+        progressBar->setMaximum(static_cast<int>(bytesTotal));
+        progressBar->setValue(static_cast<int>(bytesReceived));
+    });
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, savePath](){
         onDownloadFileFinished(reply, savePath);
@@ -535,22 +538,16 @@ void ApiController::onDeleteFileFinished(QNetworkReply *reply)
 void ApiController::updateFile(User &session, const QJsonObject &metaData)
 {
     QUrl apiUrl(BASE_URL + "files/update_file/" + metaData["id"].toString());
-    QUrlQuery query;
-
-    query.addQueryItem("name", metaData["name"].toString());
-    query.addQueryItem("path", metaData["path"].toString());
-    query.addQueryItem("description", metaData["description"].toString());
-    query.addQueryItem("author", metaData["author"].toString());
-    query.addQueryItem("theme", metaData["theme"].toString());
-    query.addQueryItem("is_public", QString::number(metaData["is_public"].toInt()));
-    apiUrl.setQuery(query);
 
     QNetworkRequest request(apiUrl);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader(QByteArray("Authorization"),
                          QString("bearer %1").arg(session.getToken()).toUtf8());
 
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
+    QJsonDocument jsonDoc(metaData);
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = networkManager->post(request, jsonData);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         onUpdateFileFinished(reply);

@@ -12,28 +12,27 @@ class File
 {
 public:
     File();
-    File(const QJsonObject& metaData, QByteArray blob = 0);
+    File(const QJsonObject& metaData);
     ~File();
 
 public:
-    int getId() const { return metaData["id"].toInt(); }
+    QUuid getId() const { return QUuid(metaData["id"].toString()); }
+    QString getName() const { return metaData["name"].toString(); }
+    QString getPath() const { return metaData["path"].toString(); }
+    QString getType() const { return metaData["mime_type"].toString(); }
+    QString getDescription() const { return metaData["description"].toString(); }
+    QString getAuthor() const { return metaData["author"].toString(); }
+    QString getTheme() const { return metaData["theme"].toString(); }
+    QUuid getOwnerId() const { return QUuid(metaData["owner_id"].toString()); }
 
-    QString getName() const { return metaData["Name"].toString(); }
-    QString getType() const { return metaData["Type"].toString(); }
+    bool isPublic() const { return metaData["is_public"].toBool(); }
+    bool isEmptyFile() const { return is_empty; }
 
-    QString getUploader() const { return metaData["Uploader"].toString();; }
-    void setUploader(QString uploader) { metaData["Uploader"] = uploader; }
-
-    QString getPath() const { return metaData["Path"].toString(); }
-    void setPath(QString path) { metaData["Path"] = path; }
-
-    QByteArray getBlob() const { return rawFileData; }
+    void setPath(QString path) { metaData["path"] = path; }
+    void setOwner(QUuid owner_id) { metaData["owner_id"] = owner_id.toString(); }
 
     QJsonObject getMetaData() const { return metaData; }
 
-
-    bool isPublic() const { return metaData["Public"].toBool(); }
-    bool isEmptyFile() const { return is_empty; }
 
     qreal getSizeInMB() const;
     qreal getBlobSizeInMB() const;
@@ -43,7 +42,6 @@ public:
 
 private:
     QJsonObject metaData;
-    QByteArray rawFileData;
     bool is_empty;
 };
 

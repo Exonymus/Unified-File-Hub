@@ -1,11 +1,12 @@
 import asyncio
+import json
 import mimetypes
 import os
 import aiofiles
 from pathlib import Path
 from uuid import UUID
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -30,20 +31,21 @@ async def save_uploaded_file(file_owner_id: UUID, file_path: str,
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
 
-@router.post('/upload_file')
+@router.post('/upload_file', status_code=status.HTTP_201_CREATED)
 async def upload_file(
         current_user: Annotated[User, Depends(security.get_current_active_user)],
-        metadata: FileMetadata = Depends(),
         input_data: UploadFile = File(...),
+        metadata: str = Form(...),
         db: Session = Depends(get_db)):
     try:
+        metadata_dict = json.loads(metadata)
         db.begin()
-        file_id, file_type = crud.create_file_metadata(metadata=metadata,
+        file_id, file_type = crud.create_file_metadata(metadata=FileMetadata(**metadata_dict),
                                                        user_id=current_user.id,
                                                        db=db)
         file_name = str(file_id) + mimetypes.guess_extension(file_type)
         await asyncio.create_task(save_uploaded_file(file_owner_id=current_user.id,
-                                                     file_path=metadata.path,
+                                                     file_path=metadata_dict["path"],
                                                      file_name=file_name,
                                                      file_data=input_data))
         db.commit()
@@ -52,7 +54,8 @@ async def upload_file(
         raise http_err
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to upload file: {str(e)}")
     finally:
         db.close()
 
@@ -75,7 +78,7 @@ async def get_user_files(
 @router.post('/update_file/{file_id}')
 async def update_file(
         current_user: Annotated[User, Depends(security.get_current_active_user)],
-        file_id: UUID, metadata: FileUpdate = Depends(), db: Session = Depends(get_db)):
+        file_id: UUID, metadata: FileUpdate, db: Session = Depends(get_db)):
     try:
         db.begin()
         crud.update_file_metadata(file_id=file_id, user_id=current_user.id,

@@ -113,7 +113,7 @@ def get_user_files_metadata(user_id: UUID, db: Session) -> List[File]:
                             detail="User does not exist")
 
     # Retrieve files owned by the user or public files
-    files = db.query(File).filter(or_(File.owner_id == user_id, File.is_public is True)).all()
+    files = db.query(File).filter(or_(File.owner_id == user_id, File.is_public == 1)).all()
 
     return files
 

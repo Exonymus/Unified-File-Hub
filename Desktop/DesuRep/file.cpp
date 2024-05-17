@@ -1,9 +1,8 @@
 #include "file.h"
 
-File::File(const QJsonObject& data, QByteArray blob)
+File::File(const QJsonObject& data)
 {
     metaData = data;
-    rawFileData = blob;
     is_empty = false;
 }
 
@@ -13,16 +12,9 @@ File::File() {
 
 File::~File() { }
 
-qreal File::getBlobSizeInMB() const
-{
-    const qint64 bytes = rawFileData.size();
-    const qreal megabytes = static_cast<qreal>(bytes) / (1024 * 1024);
-    return megabytes;
-}
-
 qreal File::getSizeInMB() const
 {
-    return metaData["Size"].toDouble();
+    return metaData["size"].toDouble();
 }
 
 

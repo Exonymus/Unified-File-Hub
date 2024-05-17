@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.post('/signup', summary="Create new user", status_code=status.HTTP_201_CREATED)
-async def create_user(metadata: UserMetadata = Depends(), db: Session = Depends(get_db)):
+async def create_user(metadata: UserMetadata, db: Session = Depends(get_db)):
     try:
         db.begin()
         crud.create_user(metadata=metadata, db=db)

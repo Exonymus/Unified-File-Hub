@@ -16,6 +16,7 @@
 #include <QFileDialog>
 #include <QDir>
 #include <QMessageBox>
+#include <QProgressBar>
 #include <QBuffer>
 #include <QHttpMultiPart>
 
@@ -30,8 +31,17 @@ class ApiController : public QObject
 public:
     ApiController(QObject *parent = nullptr);
 
+    // Метод для проверки состояния апи
+    void checkApiAvailability(std::function<void(bool)> callback);
+
+    // Мето для регистрации пользователя
+    void signUp(User &session, const QJsonObject &user_metadata);
+
     // Метод для авторизации пользователя
-    void authenticate(const QString &username, const QString &password, User &session);
+    void authenticate(User &session, const QString &username, const QString &password);
+
+    // Метод для получения метаданных пользователя
+    void getUserInfo(User &session);
 
     // Метод для копирования файла
     void copyFile(User &session, const QString &fileId, const QString &file_path);
@@ -43,10 +53,10 @@ public:
     void updateFile(User &session, const QJsonObject &metaData);
 
     // Метод для выгрузки файла
-    void uploadFile(const File &uploadFile);
+    void uploadFile(User &session, const File &uploadFile, QProgressBar *progressBar);
 
     // Метод для загрузки файла
-    void downloadFile(User &session, const QString &file_id, const QString &savePath);
+    void downloadFile(User &session, const QString &file_id, const QString &savePath, QProgressBar *progressBar);
 
     // Метод для получения файлов пользователя
     void getUserFiles(User &session, QList<File> &files);
@@ -59,9 +69,13 @@ private slots:
 
     void onDeleteFileFinished(QNetworkReply *reply);
 
+    void onUploadFileFinished(QNetworkReply *reply);
+
     void onDownloadFileFinished(QNetworkReply *reply, const QString &savePath);
 
     void onUpdateFileFinished(QNetworkReply *reply);
+
+    void onSignUpFinished(QNetworkReply *reply, User &session, const QJsonObject &user_metadata);
 
     void onGetUserFilesFinished(QNetworkReply *reply, QList<File> &files);
 
@@ -78,7 +92,6 @@ private:
     void handleNetworkError(const QString &operation, QNetworkReply *reply);
 
     void processFileData(const QJsonObject& dataObject, QList<File> &files);
-    void processUserData(const QJsonObject &dataObject, User &session);
 
     File createFileObject(const QJsonObject& fileObject);
     User::Data createUserDataObject(const QJsonObject &userObject);
@@ -88,6 +101,8 @@ private:
     QNetworkAccessManager *networkManager;
 
 signals:
+    void sessionExpired();
+
     void authSucceed();
     void authFailed(const QString message);
 

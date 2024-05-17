@@ -9,7 +9,7 @@ FileTreeWidget::FileTreeWidget(QTreeWidget *treeWidget, QString storageName, QTe
     tree = treeWidget;
 
 //    spaceLimitMB = 0.00001;
-    spaceLimitMB = 102;
+    spaceLimitMB = 1024;
 
     QObject::connect(tree, &QTreeWidget::itemSelectionChanged, this, &FileTreeWidget::handleFileSelectionChanged);
 }
@@ -32,7 +32,7 @@ void FileTreeWidget::updateFiles()
     // Итерируемся по найденным файлам
     for (const File &file : *files)
     {
-        bool isOwned = file.getUploader() == windControl->session->getUsername();
+        bool isOwned = file.getOwnerId() == windControl->session->getId();
         if (isOwned) { totalSpaceUsedMB += file.getSizeInMB(); }
 
         // Файл не лежит в корне
@@ -145,38 +145,63 @@ QString FileTreeWidget::getPath(QTreeWidgetItem *item)
 void FileTreeWidget::setFileInfo(QTreeWidgetItem *item)
 {
     fileInfo->clear();
+
     bool isFolder = item->data(0, Qt::UserRole).isNull();
     QJsonObject metaData = item->data(0, Qt::UserRole).toJsonObject();
 
-    QString header = "<h3 style='text-align: center;'><b>Properties of '";
+    QString header;
     QString body = "<h4><ul>";
-    if (isFolder) {
-        header += item->text(0) +"' folder</h3></b><br>";
-        body += "<li><i>Files Stored:</i> " + QString::number(item->childCount()) + "</li>";
-    } else {
-        QString publicity = metaData["Public"].toBool()? "public" : "private";
-        header += item->text(0) + "." + File::getFileExtensionFromMimeType(metaData["Type"].toString()) +"'</h3></b>";
-        for (auto it = metaData.begin(); it != metaData.end(); ++it)
-        {
-            QString key = it.key();
-            if (key == "id" || key == "DownloadUrl") continue;
-            QString value = it.value().toString();
-            if (key == "Public") {value = publicity; key = "Publicity";}
-            if (key == "Size") {
-                double size = it.value().toDouble();
-                size = size < 0.1? 0 : size;
-                QString strSize = QString::number(size, 'f', 2);
-                strSize = (strSize == "0.00"? "&lt; 0.1" : strSize);
 
-                value = strSize + " MB";
+    if (isFolder)
+    {
+        header = QString("<h3 style='text-align: center;'><b>Properties of '%1' folder</b></h3><br>").arg(item->text(0));
+        body += QString("<li><i>Files Stored:</i> %1</li>").arg(item->childCount());
+    }
+    else
+    {
+        QString fileName = item->text(0);
+        QString fileExtension = File::getFileExtensionFromMimeType(metaData["mime_type"].toString());
+        QString publicity = metaData["is_public"].toBool() ? "public" : "private";
+
+        header = QString("<h3 style='text-align: center;'><b>Properties of '%1.%2'</b></h3>").arg(fileName, fileExtension);
+
+        QHash<QString, QString> displayKeys = {
+            {"mime_type", "Type"},
+            {"author", "Author"},
+            {"description", "Description"},
+            {"upload_date", "Uploaded on"},
+            {"theme", "Theme"},
+            {"path", "Path"},
+            {"is_public", "Publicity"},
+            {"size", "Size"}
+        };
+
+        for (auto it = metaData.constBegin(); it != metaData.constEnd(); ++it) {
+            QString key = it.key();
+            if (key == "id" || key == "name") continue;
+
+            QString displayKey = displayKeys.value(key, key);
+            QString value = it.value().toString();
+
+            if (key == "is_public") {
+                value = publicity;
+            } else if (key == "size") {
+                double size = it.value().toDouble();
+                size = size < 0.1 ? 0 : size;
+                QString strSize = QString::number(size, 'f', 2);
+                value = (strSize == "0.00" ? "&lt; 0.1" : strSize) + " MB";
             }
-            body += "<li><i>" + key + ":</i> " + value + "</li>";
+
+            body += QString("<li><i>%1:</i> %2</li>").arg(displayKey, value);
         }
     }
-    body += "</h4></ul>";
+
+    body += "</ul></h4>";
+
     fileInfo->append(header);
     fileInfo->append(body);
 }
+
 
 void FileTreeWidget::refreshFiles()
 {
@@ -216,5 +241,5 @@ void FileTreeWidget::refreshFiles()
         emit spaceUsageUpdate();
     });
 
-    webApi->getUserFiles(windControl->session->getUsername(), *files);
+    webApi->getUserFiles(*windControl->session, *files);
 }

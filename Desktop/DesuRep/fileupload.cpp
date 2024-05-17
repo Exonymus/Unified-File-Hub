@@ -126,16 +126,17 @@ File FileUploadDialog::getUploadData() const
 
     QJsonObject uploadData;
 
-    uploadData["Name"] = fileNameLineEdit->text();
-    uploadData["Type"] = fType;
-    uploadData["Uploader"] = windControl->session->getUsername();
-    uploadData["Path"] = filePathLineEdit->text().isEmpty()? "." : filePathLineEdit->text();
-    uploadData["Description"] = descriptionTextEdit->toPlainText();
-    uploadData["Author"] = authorLineEdit->text();
-    uploadData["Theme"] = themeLineEdit->text();
-    uploadData["Public"] = int(isPublicCheckBox->isChecked());
+    uploadData["name"] = fileNameLineEdit->text();
+    uploadData["mime_type"] = fType;
+    uploadData["owner_id"] = windControl->session->getUsername();
+    uploadData["path"] = filePathLineEdit->text().isEmpty()? "." : filePathLineEdit->text();
+    uploadData["description"] = descriptionTextEdit->toPlainText();
+    uploadData["author"] = authorLineEdit->text();
+    uploadData["theme"] = themeLineEdit->text();
+    uploadData["is_public"] = int(isPublicCheckBox->isChecked());
+    uploadData["BLOB"] = QString::fromStdString(fByteArray.toStdString());
 
-    File to_upload = File(uploadData, fByteArray);
+    File to_upload = File(uploadData);
 
     return to_upload;
 }

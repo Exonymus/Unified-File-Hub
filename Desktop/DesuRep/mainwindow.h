@@ -4,9 +4,6 @@
 #include <QMainWindow>
 #include <QFileDialog>
 #include <QDir>
-#include <QNetworkAccessManager>
-#include <QNetworkRequest>
-#include <QNetworkReply>
 #include <QFile>
 #include "QTreeWidget"
 
@@ -28,10 +25,9 @@ public:
     ~MainWindow();
 
 private:
-
-
-    File findFileById(int id, const QList<File> *fileList);
-    void downloadFile(const QString &url, const QString &filePath);
+    void showFileStatus(QString status);
+    void hideFileStatus();
+    File findFileById(QUuid id, const QList<File> *fileList);
     bool showDeleteConfirmationDialog(QString fileName);
 
 
@@ -58,9 +54,8 @@ private slots:
 
     void on_actionUpload_triggered();
 
-    void onDownloadFinished(QNetworkReply *reply);
-
     void on_actionEdit_triggered();
+
     void on_edit_profile_btn_clicked();
 
     void on_change_pass_btn_clicked();
@@ -71,7 +66,6 @@ private:
     QTimer *actionsTimer;
     QTimer *sessionTimer;
     Ui::MainWindow *ui;
-    QNetworkAccessManager *fDownloadManager;
     FileEditDialog editDialog;
     FileUploadDialog uploadDialog;
 
@@ -83,6 +77,8 @@ private:
 
     QString changedEmail;
     QString newPass;
+
+    bool fileOperationInProgress;
 
     bool showChangeEmailDialog();
     bool showChangePasswordDialog();

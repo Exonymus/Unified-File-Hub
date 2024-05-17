@@ -11,13 +11,14 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->download_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
     connect(ui->upload_btn, SIGNAL(clicked()), this, SLOT(on_actionUpload_triggered()));
 
-    desuStorage = new FileTreeWidget(ui->desurep_files, "DesuRep", ui->desurep_file_info, this);
-
-    fDownloadManager = new QNetworkAccessManager(this);
-    connect(fDownloadManager, &QNetworkAccessManager::finished, this, &MainWindow::onDownloadFinished);
+    desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, this);
 
     sessionTimer = new QTimer();
     actionsTimer = new QTimer();
+
+    hideFileStatus();
+    dropShadow(ui->file_status_label);
+    fileOperationInProgress = false;
 
     // Сигнал таймеров
     connect(sessionTimer, SIGNAL(timeout()), this, SLOT(sessionCheck()));
@@ -27,15 +28,41 @@ MainWindow::MainWindow(QWidget *parent)
     connect(webApi, &ApiController::refreshDesuFiles, this, &MainWindow::on_refresh_files_clicked);
     connect(desuStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
 
-    // Сигналы загрузки файла
+    // Сигнал истечения сессии
+    connect(webApi, &ApiController::sessionExpired, this, [this]() {
+        QMessageBox::warning(this, tr("Error"), tr("User session has expired, please re-login."));
+        on_so_btn_clicked();
+    });
+
+    // Сигналы выгрузки файла
     connect(webApi, &ApiController::uploadSucceed, this, [this]() {
         QMessageBox::information(this, tr("Upload Complete"), tr("File uploaded successfully."));
         uploadDialog.clearData();
+
+        fileOperationInProgress = false;
+        hideFileStatus();
+
         desuStorage->refreshFiles();
     });
     connect(webApi, &ApiController::uploadFailed, this, [this]() {
         QMessageBox::warning(this, tr("Error"), tr("Failed to upload the file."));
+
+        fileOperationInProgress = false;
+        hideFileStatus();
+
         on_actionUpload_triggered();
+    });
+
+    // Сигналы загрузки файла
+    connect(webApi, &ApiController::downloadSucceed, this, [this] {
+        fileOperationInProgress = false;
+        hideFileStatus();
+        QMessageBox::information(this, tr("Download Complete"), tr("File downloaded successfully."));
+    });
+    connect(webApi, &ApiController::downloadFailed, this, [this](const QString& message) {
+        fileOperationInProgress = false;
+        hideFileStatus();
+        QMessageBox::critical(this, tr("Download Error"), message);
     });
 
     // Сигналы изменения почты
@@ -59,6 +86,22 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::showFileStatus(QString status)
+{
+
+    ui->file_status_label->setText(status);
+    ui->file_status_label->show();
+    ui->file_status_pb->show();
+}
+
+void MainWindow::hideFileStatus()
+{
+    ui->file_status_label->hide();
+    ui->file_status_label->setText("");
+    ui->file_status_pb->hide();
+    ui->file_status_pb->setValue(0);
 }
 
 void MainWindow::sessionCheck()
@@ -142,20 +185,27 @@ void MainWindow::actionsCheck()
         ui->actionDelete->setEnabled(false);
         ui->actionUpload->setEnabled(true);
     }
+
+    if (fileOperationInProgress) {
+        ui->actionUpload->setEnabled(false);
+        ui->actionDownload->setEnabled(false);
+        switchBtn(ui->download_btn, false);
+        switchBtn(ui->upload_btn, false);
+    }
 }
 
 void MainWindow::on_actionCopy_triggered() {
     // Обработка события копирования
-    int selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toInt();
+    QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
     copyBuffer = findFileById(selectedFileId, desuStorage->getFiles());
 
-    copyBuffer.setUploader(windControl->session->getUsername());
+    copyBuffer.setOwner(windControl->session->getId());
     if (!cutBuffer.isEmptyFile()) { cutBuffer = File(); }
 }
 
 void MainWindow::on_actionCut_triggered() {
     // Обработка события вырезания
-    int selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toInt();
+    QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
     cutBuffer = findFileById(selectedFileId, desuStorage->getFiles());
 
     if (!copyBuffer.isEmptyFile()) { copyBuffer = File(); }
@@ -176,7 +226,7 @@ void MainWindow::on_actionPaste_triggered() {
 
         if (copyBuffer.getSizeInMB() < desuStorage->spaceAvailableMB())
         {
-            webApi->copyFile(windControl->session->getUsername(), QString::number(copyBuffer.getId()), filePath_formatted);
+            webApi->copyFile(*windControl->session, copyBuffer.getId().toString(), filePath_formatted);
         } else {
             QMessageBox::critical(this, "", "⚠ File size error!\n\nThe copied file has exceeded your space limit! "
                                          "\nPlease select another file to copy.");
@@ -187,7 +237,7 @@ void MainWindow::on_actionPaste_triggered() {
         if (filePath_formatted != cutBuffer.getPath())
         {
             cutBuffer.setPath(filePath_formatted);
-            webApi->updateFile(cutBuffer.getMetaData());
+            webApi->updateFile(*windControl->session, cutBuffer.getMetaData());
 
             cutBuffer = File();
         }
@@ -195,7 +245,7 @@ void MainWindow::on_actionPaste_triggered() {
 }
 
 
-File MainWindow::findFileById(int id, const QList<File> *fileList) {
+File MainWindow::findFileById(QUuid id, const QList<File> *fileList) {
     for (const File &file : *fileList) {
         if (file.getId() == id) {
             return file;
@@ -207,15 +257,15 @@ File MainWindow::findFileById(int id, const QList<File> *fileList) {
 
 void MainWindow::on_actionEdit_triggered() {
     // Обработка события изменения файла
-    int selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toInt();
+    QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
     File selectedFile = findFileById(selectedFileId, desuStorage->getFiles());
     editDialog.setFileProperties(selectedFile.getMetaData());
     bool changed = editDialog.exec();
 
     if (changed) {
         QJsonObject ed_MetaData = editDialog.getEditedData();
-        ed_MetaData["id"] = selectedFileId;
-        webApi->updateFile(ed_MetaData);
+        ed_MetaData["id"] = selectedFileId.toString();
+        webApi->updateFile(*windControl->session, ed_MetaData);
     }
 }
 
@@ -292,11 +342,11 @@ bool MainWindow::showChangePasswordDialog() {
 }
 
 void MainWindow::on_actionDelete_triggered() {
-    int selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toInt();
+    QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
 
     // Обработка события удаления файла
     if (showDeleteConfirmationDialog(ui->desurep_files->currentItem()->text(0))) {
-        webApi->deleteFile(QString::number(selectedFileId));
+        webApi->deleteFile(*windControl->session, selectedFileId);
     }
 }
 
@@ -306,60 +356,38 @@ void MainWindow::on_actionDownload_triggered() {
 
     if (selectedItem) {
         // Получение ссылки на скачивание и имени файла из пользовательских данных
-        QString downloadUrl = selectedItem->data(0, Qt::UserRole).toJsonObject()["DownloadUrl"].toString();
+        QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
         QString fileName = selectedItem->text(0) + "." +
-                File::getFileExtensionFromMimeType(selectedItem->data(0, Qt::UserRole).toJsonObject()["Type"].toString());
+                File::getFileExtensionFromMimeType(selectedItem->data(0, Qt::UserRole).toJsonObject()["mime_type"].toString());
+        QString savePath = QFileDialog::getSaveFileName(this, tr("Save File"), QDir::homePath() + "/Downloads/" + fileName);
 
         // Выполнение скачивания файла
-        downloadFile(downloadUrl, fileName);
+        showFileStatus("Downloading file from Storage:");
+        fileOperationInProgress = true;
+        webApi->downloadFile(*windControl->session,
+                             selectedFileId,
+                             savePath,
+                             ui->file_status_pb);
     }
 }
 
-void MainWindow::on_actionUpload_triggered() {
+void MainWindow::on_actionUpload_triggered()
+{
     // Обработка события выгрузки файла
     uploadDialog.setRestrictions(desuStorage->spaceAvailableMB());
-    if (uploadDialog.exec() == QDialog::Accepted) {
-        webApi->uploadFile(uploadDialog.getUploadData());
-    } else {
+    if (uploadDialog.exec() == QDialog::Accepted)
+    {
+        showFileStatus("Uploading file to Storage:");
+        fileOperationInProgress = true;
+        webApi->uploadFile(*windControl->session,
+                           uploadDialog.getUploadData(),
+                           ui->file_status_pb);
+    }
+    else
+    {
         uploadDialog.clearData();
     }
 }
-
-void MainWindow::downloadFile(const QString &url, const QString &fileName)
-{
-    QNetworkRequest request((QUrl(url)));
-    QNetworkReply *reply = fDownloadManager->get(request);
-
-    reply->setProperty("url", url);
-    reply->setProperty("fileName", fileName);
-}
-
-void MainWindow::onDownloadFinished(QNetworkReply *reply)
-{
-    if (reply->error() == QNetworkReply::NoError) {
-        QString url = reply->property("url").toString();
-        QString fileName = reply->property("fileName").toString();
-
-        QString downloadPath = QFileDialog::getSaveFileName(this, tr("Save File"), QDir::homePath() + "/" + fileName);
-
-        if (!downloadPath.isEmpty()) {
-            QFile file(downloadPath);
-
-            if (file.open(QIODevice::WriteOnly)) {
-                file.write(reply->readAll());
-                file.close();
-                QMessageBox::information(this, tr("Download Complete"), tr("File downloaded successfully."));
-                } else {
-                    QMessageBox::warning(this, tr("Error"), tr("Failed to open the file for writing."));
-                }
-            }
-        } else {
-            QMessageBox::warning(this, tr("Error"), tr("Failed to download the file. ") + reply->errorString());
-        }
-
-    reply->deleteLater();
-}
-
 
 
 void MainWindow::on_refresh_files_clicked()
@@ -380,7 +408,7 @@ void MainWindow::on_so_btn_clicked()
     ui->desurep_files->clear();
     ui->desurep_file_info->clear();
     ui->title_label->setText("Welcome, ");
-    ui->desurep_files->headerItem()->setText(0, "DesuRep");
+    ui->desurep_files->headerItem()->setText(0, "UFH Storage");
 
     // Буфферы файлов
     copyBuffer = File();
@@ -401,7 +429,7 @@ void MainWindow::on_edit_profile_btn_clicked()
 {
     if (showChangeEmailDialog()) {
         if (!changedEmail.isEmpty() && changedEmail != windControl->session->getEmail()) {
-            webApi->editUser(QString::number(windControl->session->getId()), changedEmail);
+            webApi->editUser(*windControl->session, changedEmail);
         } else {
             QMessageBox::critical(this, "", "⚠ Bad Input!\n\nNew email is invalid! "
                                          "Please check your input.");
