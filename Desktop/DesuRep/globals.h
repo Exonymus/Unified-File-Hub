@@ -17,7 +17,7 @@ extern Database *database;
 
 extern ApiController *webApi;
 
-extern bool isOfflineMode;
+extern QStringList secret_questions;
 
 extern void switchBtn(QPushButton *btn, bool state);
 extern void dropShadow(QLabel *label);

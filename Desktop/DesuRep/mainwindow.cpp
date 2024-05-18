@@ -66,13 +66,31 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Сигналы изменения почты
-    connect(webApi, &ApiController::userEditSucceed, this, [this]() {
-        windControl->session->setEmail(changedEmail);
-        changedEmail.clear();
+    connect(webApi, &ApiController::userEditSucceed, this, [this](const QString& message) {
+        if (message == "email")
+        {
+            windControl->session->
+                    setEmail(changedUserMetadata.value("email").toString());
+        }
+        else if (message == "password")
+        {
+            windControl->session->
+                    setPassword(Enhasher::hashPassword(changedUserMetadata.value("password").toString()));
+            database->saveUserSessionLocal(windControl->session->getData(), windControl->session->getToken());
+        }
+        else if (message == "secret")
+        {
+            windControl->session->setSecret(changedUserMetadata.value("secret_num").toInt(),
+                                            changedUserMetadata.value("secret_answer").toString());
+        }
+
+        QMessageBox::information(this, tr("Edit Complete"), tr("Changes applied succesfully."));
+        changedUserMetadata = QJsonObject();
     });
+
     connect(webApi, &ApiController::userEditFailed, this, [this]() {
-        QMessageBox::warning(this, tr("Error"), tr("Failed to change profile info."));
-        changedEmail.clear();
+        QMessageBox::warning(this, tr("Error"), tr("Failed to change user info."));
+        changedUserMetadata = QJsonObject();
     });
 
     sessionTimer->start(100);
@@ -194,7 +212,8 @@ void MainWindow::actionsCheck()
     }
 }
 
-void MainWindow::on_actionCopy_triggered() {
+void MainWindow::on_actionCopy_triggered()
+{
     // Обработка события копирования
     QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
     copyBuffer = findFileById(selectedFileId, desuStorage->getFiles());
@@ -203,7 +222,8 @@ void MainWindow::on_actionCopy_triggered() {
     if (!cutBuffer.isEmptyFile()) { cutBuffer = File(); }
 }
 
-void MainWindow::on_actionCut_triggered() {
+void MainWindow::on_actionCut_triggered()
+{
     // Обработка события вырезания
     QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
     cutBuffer = findFileById(selectedFileId, desuStorage->getFiles());
@@ -211,7 +231,8 @@ void MainWindow::on_actionCut_triggered() {
     if (!copyBuffer.isEmptyFile()) { copyBuffer = File(); }
 }
 
-void MainWindow::on_actionPaste_triggered() {
+void MainWindow::on_actionPaste_triggered()
+{
     // Обработка события вставки
     QString filePath = getPath(ui->desurep_files->currentItem()).removeFirst();
     QString filePath_formatted = filePath != "My Files"? filePath.mid(filePath.indexOf("/")).removeFirst() : ".";
@@ -245,7 +266,8 @@ void MainWindow::on_actionPaste_triggered() {
 }
 
 
-File MainWindow::findFileById(QUuid id, const QList<File> *fileList) {
+File MainWindow::findFileById(QUuid id, const QList<File> *fileList)
+{
     for (const File &file : *fileList) {
         if (file.getId() == id) {
             return file;
@@ -255,7 +277,8 @@ File MainWindow::findFileById(QUuid id, const QList<File> *fileList) {
     return File();
 }
 
-void MainWindow::on_actionEdit_triggered() {
+void MainWindow::on_actionEdit_triggered()
+{
     // Обработка события изменения файла
     QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
     File selectedFile = findFileById(selectedFileId, desuStorage->getFiles());
@@ -269,7 +292,8 @@ void MainWindow::on_actionEdit_triggered() {
     }
 }
 
-bool MainWindow::showDeleteConfirmationDialog(QString fileName) {
+bool MainWindow::showDeleteConfirmationDialog(QString fileName)
+{
     QDialog deleteDialog(this);
     QVBoxLayout *dialogLayout = new QVBoxLayout(&deleteDialog);
     dialogLayout->setSizeConstraint(QLayout::SetFixedSize);
@@ -288,22 +312,53 @@ bool MainWindow::showDeleteConfirmationDialog(QString fileName) {
     return deleteDialog.exec() == QDialog::Accepted;
 }
 
-bool MainWindow::showChangeEmailDialog() {
-    QDialog changeEmailDialog(this);
-    QVBoxLayout *dialogLayout = new QVBoxLayout(&changeEmailDialog);
-    dialogLayout->setSizeConstraint(QLayout::SetFixedSize);
 
-    QLabel *label = new QLabel("Current Email: " +  windControl->session->getEmail(), &changeEmailDialog);
+bool MainWindow::showChangeEmailDialog()
+{
+    QDialog changeEmailDialog(this);
+    changeEmailDialog.setFixedSize(300, 180);
+
+    QVBoxLayout *dialogLayout = new QVBoxLayout(&changeEmailDialog);
+
+    QLabel *label = new QLabel("Current Email: " + windControl->session->getEmail(), &changeEmailDialog);
     dialogLayout->addWidget(label);
 
     QLineEdit *newEmailLineEdit = new QLineEdit(&changeEmailDialog);
     newEmailLineEdit->setPlaceholderText("email@example.com");
     dialogLayout->addWidget(newEmailLineEdit);
 
+    QLineEdit *userPasswordEdit = new QLineEdit(&changeEmailDialog);
+    userPasswordEdit->setPlaceholderText("password");
+    userPasswordEdit->setEchoMode(QLineEdit::Password);
+    dialogLayout->addWidget(userPasswordEdit);
+
     QPushButton *confirmButton = new QPushButton("Change Email", &changeEmailDialog);
     dialogLayout->addWidget(confirmButton);
-    connect(confirmButton, &QPushButton::clicked, &changeEmailDialog, [this, &newEmailLineEdit, &changeEmailDialog]() {
-        changedEmail = newEmailLineEdit->text();
+
+    static const QRegularExpression emailRegex(R"((\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b))");
+
+    connect(confirmButton, &QPushButton::clicked, this, [this, newEmailLineEdit, userPasswordEdit, &changeEmailDialog]()
+    {
+        QString newEmail = newEmailLineEdit->text();
+        QString password = userPasswordEdit->text();
+
+        // Validate email format
+        QRegularExpressionMatch match = emailRegex.match(newEmail);
+        if (!match.hasMatch()) {
+            QMessageBox::warning(&changeEmailDialog, "Invalid Email", "Please enter a valid email address.");
+            userPasswordEdit->clear();
+            return;
+        }
+
+        // Validate password
+        if (!Enhasher::checkPassword(password, windControl->session->getPassword())) {
+            QMessageBox::warning(&changeEmailDialog, "Invalid Password", "The password you entered is incorrect.");
+            userPasswordEdit->clear();
+            return;
+        }
+
+        // If both checks pass
+        changedUserMetadata = QJsonObject{{"email", newEmail}};
         changeEmailDialog.accept();
     });
 
@@ -314,25 +369,46 @@ bool MainWindow::showChangeEmailDialog() {
     return changeEmailDialog.exec() == QDialog::Accepted;
 }
 
-
-bool MainWindow::showChangePasswordDialog() {
+bool MainWindow::showChangePasswordDialog()
+{
     QDialog changePasswordDialog(this);
+    changePasswordDialog.setFixedSize(300, 180);
+
     QVBoxLayout *dialogLayout = new QVBoxLayout(&changePasswordDialog);
-    dialogLayout->setSizeConstraint(QLayout::SetFixedSize);
 
     QLineEdit *currentPasswordLineEdit = new QLineEdit(&changePasswordDialog);
-    currentPasswordLineEdit->setPlaceholderText("Enter current password");
+    currentPasswordLineEdit->setPlaceholderText("current password");
     currentPasswordLineEdit->setEchoMode(QLineEdit::Password);
     dialogLayout->addWidget(currentPasswordLineEdit);
 
     QLineEdit *newPasswordLineEdit = new QLineEdit(&changePasswordDialog);
-    newPasswordLineEdit->setPlaceholderText("Enter new password");
+    newPasswordLineEdit->setPlaceholderText("new password");
     newPasswordLineEdit->setEchoMode(QLineEdit::Password);
     dialogLayout->addWidget(newPasswordLineEdit);
 
     QPushButton *confirmButton = new QPushButton("Change Password", &changePasswordDialog);
     dialogLayout->addWidget(confirmButton);
-    connect(confirmButton, &QPushButton::clicked, &changePasswordDialog, &QDialog::accept);
+
+    connect(confirmButton, &QPushButton::clicked, this, [ currentPasswordLineEdit, newPasswordLineEdit, &changePasswordDialog, this]()
+    {
+        QString currentPassword = currentPasswordLineEdit->text();
+        QString newPassword = newPasswordLineEdit->text();
+
+        // Валидация пароля
+        if (!Enhasher::checkPassword(currentPassword, windControl->session->getPassword()))
+        {
+            QMessageBox::warning(&changePasswordDialog, "Invalid Password", "The current password you entered is incorrect.");
+            return;
+        }
+
+        if (currentPassword == newPassword) {
+            QMessageBox::warning(&changePasswordDialog, "Invalid Password", "The new password cannot be the same as the current password.");
+            return;
+        }
+
+        changedUserMetadata = QJsonObject{{"password", newPassword}};
+        changePasswordDialog.accept();
+    });
 
     QPushButton *cancelButton = new QPushButton("Cancel", &changePasswordDialog);
     dialogLayout->addWidget(cancelButton);
@@ -341,7 +417,110 @@ bool MainWindow::showChangePasswordDialog() {
     return changePasswordDialog.exec() == QDialog::Accepted;
 }
 
-void MainWindow::on_actionDelete_triggered() {
+bool MainWindow::showSecretQuestionRecoveryDialog()
+{
+    QDialog secretQuestionDialog(this);
+    secretQuestionDialog.setFixedSize(300, 240);
+
+    QVBoxLayout *dialogLayout = new QVBoxLayout(&secretQuestionDialog);
+
+    QComboBox *questionComboBox = new QComboBox(&secretQuestionDialog);
+    questionComboBox->setCurrentIndex(-1);
+    questionComboBox->setPlaceholderText("<Select secret question>");
+    questionComboBox->addItems(secret_questions);
+    dialogLayout->addWidget(questionComboBox);
+
+    QLineEdit *answerLineEdit = new QLineEdit(&secretQuestionDialog);
+    answerLineEdit->setPlaceholderText("Answer");
+    dialogLayout->addWidget(answerLineEdit);
+
+    QLineEdit *passwordLineEdit = new QLineEdit(&secretQuestionDialog);
+    passwordLineEdit->setPlaceholderText("Password");
+    passwordLineEdit->setEchoMode(QLineEdit::Password);
+    dialogLayout->addWidget(passwordLineEdit);
+
+    QLabel *registrationDateLabel = new QLabel("Enter account registration date (MM/YYYY):", &secretQuestionDialog);
+    dialogLayout->addWidget(registrationDateLabel);
+
+    QLineEdit *regDatehLineEdit = new QLineEdit(&secretQuestionDialog);
+    regDatehLineEdit->setPlaceholderText("MM/YYYY");
+    dialogLayout->addWidget(regDatehLineEdit);
+
+    QPushButton *confirmButton = new QPushButton("Recover", &secretQuestionDialog);
+    dialogLayout->addWidget(confirmButton);
+
+    connect(confirmButton, &QPushButton::clicked, this, [this, &secretQuestionDialog,
+            passwordLineEdit, regDatehLineEdit, questionComboBox, answerLineEdit]() {
+        QString enteredPassword = passwordLineEdit->text();
+        QString enteredDateStr = regDatehLineEdit->text();
+        QStringList dateParts = enteredDateStr.split("/");
+
+        // Проверка выбора вопроса и ответа
+        if (questionComboBox->currentIndex() == -1) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Question", "Please select a secret question.");
+            return;
+        }
+
+        if (answerLineEdit->text().isEmpty()) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Answer", "The answer cannot be empty.");
+            return;
+        }
+
+        // Валидация пароля
+        if (!Enhasher::checkPassword(enteredPassword, windControl->session->getPassword())) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Password", "The password you entered is incorrect.");
+            return;
+        }
+
+        if (dateParts.size() != 2) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Date Format", "Please enter the date in MM/YYYY format.");
+            return;
+        }
+
+        static const QRegularExpression dateRegex(R"(^((0[1-9])|(1[0-2]))\/(2023|202[4-9]|20[3-9]\d{2}|[2-9]\d{3})$)");
+        QRegularExpressionMatch match = dateRegex.match(enteredDateStr);
+
+        if (!match.hasMatch()) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Date Format", "Please enter the date in MM/YYYY format with year later than 2023.");
+            return;
+        }
+
+        QString enteredMonth = dateParts[0];
+        QString enteredYear = dateParts[1];
+
+        QDate enteredDate(enteredYear.toInt(), enteredMonth.toInt(), 1);
+        QDate currentDate = QDate::currentDate();
+        QDate minValidDate(2023, 1, 1);
+        if (enteredDate < minValidDate || enteredDate > currentDate) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Date", "The date must be between January 2023 and the current date.");
+            return;
+        }
+
+        // Валидация даты регистрации
+        QDate regDate = windControl->session->getRegDate().date();
+        if (enteredDate.year() != regDate.year() || enteredDate.month() != regDate.month()) {
+            QMessageBox::warning(&secretQuestionDialog, "Invalid Date", "The registration date you entered is incorrect.");
+            return;
+        }
+
+        changedUserMetadata = QJsonObject{
+            {"secret_num", questionComboBox->currentIndex()},
+            {"secret_answer", answerLineEdit->text()}
+        };
+
+        secretQuestionDialog.accept();
+    });
+
+    QPushButton *cancelButton = new QPushButton("Cancel", &secretQuestionDialog);
+    dialogLayout->addWidget(cancelButton);
+    connect(cancelButton, &QPushButton::clicked, &secretQuestionDialog, &QDialog::reject);
+
+    return secretQuestionDialog.exec() == QDialog::Accepted;
+}
+
+
+void MainWindow::on_actionDelete_triggered()
+{
     QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
 
     // Обработка события удаления файла
@@ -350,7 +529,8 @@ void MainWindow::on_actionDelete_triggered() {
     }
 }
 
-void MainWindow::on_actionDownload_triggered() {
+void MainWindow::on_actionDownload_triggered()
+{
     // Обработка события загрузки файла
     QTreeWidgetItem *selectedItem = ui->desurep_files->currentItem();
 
@@ -401,7 +581,6 @@ void MainWindow::on_exit_btn_clicked()
     delete windControl;
 }
 
-
 void MainWindow::on_so_btn_clicked()
 {
     // Очистим рабочее окно
@@ -425,22 +604,27 @@ void MainWindow::on_so_btn_clicked()
 }
 
 
-void MainWindow::on_edit_profile_btn_clicked()
+void MainWindow::on_change_email_btn_clicked()
 {
-    if (showChangeEmailDialog()) {
-        if (!changedEmail.isEmpty() && changedEmail != windControl->session->getEmail()) {
-            webApi->editUser(*windControl->session, changedEmail);
-        } else {
-            QMessageBox::critical(this, "", "⚠ Bad Input!\n\nNew email is invalid! "
-                                         "Please check your input.");
-        }
+    if (showChangeEmailDialog())
+    {
+        webApi->editUser(*windControl->session, changedUserMetadata, "email");
     }
 
 }
 
-
 void MainWindow::on_change_pass_btn_clicked()
 {
-
+    if (showChangePasswordDialog())
+    {
+        webApi->editUser(*windControl->session, changedUserMetadata, "password");
+    }
 }
 
+void MainWindow::on_change_sq_btn_clicked()
+{
+    if (showSecretQuestionRecoveryDialog())
+    {
+        webApi->editUser(*windControl->session, changedUserMetadata, "secret");
+    }
+}

@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>DesuRep Desktop</string>
+   <string>UFH Desktop</string>
   </property>
   <property name="styleSheet">
    <string notr="true"/>
@@ -44,7 +44,7 @@
       <number>10</number>
      </property>
      <item>
-      <spacer name="spacer_margin_header_top">
+      <spacer name="content_header_spacer_top">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -60,7 +60,7 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="title_label">
+      <widget class="QLabel" name="content_title_label">
        <property name="font">
         <font>
          <family>Arial</family>
@@ -87,7 +87,7 @@ color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 rgba(0, 0, 0, 
       </widget>
      </item>
      <item>
-      <spacer name="spacer_margin_header_bottom">
+      <spacer name="content_header_spacer_bottom">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -124,7 +124,7 @@ QTabWidget::pane {
   background-color: white;
   border-radius: 10px;
 }
-#onl_si_form, #onl_su_form, #off_si_form   {
+#credentials_si_form, #session_si_form, #auth_su_form   {
   border: 2px solid black;
   border-radius: 10px;
 }</string>
@@ -141,13 +141,13 @@ QTabWidget::pane {
        <property name="tabBarAutoHide">
         <bool>false</bool>
        </property>
-       <widget class="QWidget" name="auth_online_tab">
+       <widget class="QWidget" name="auth_si_tab">
         <attribute name="title">
-         <string>Online</string>
+         <string>Sign In</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_4">
          <item row="4" column="2">
-          <spacer name="onl_spacer_margin_middle">
+          <spacer name="auth_si_spacer_h_middle">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -160,7 +160,7 @@ QTabWidget::pane {
           </spacer>
          </item>
          <item row="0" column="2">
-          <spacer name="onl_spacer_margin_top">
+          <spacer name="auth_si_spacer_top">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
            </property>
@@ -176,7 +176,7 @@ QTabWidget::pane {
           </spacer>
          </item>
          <item row="2" column="2">
-          <spacer name="onl_spacer_margin_v_middle">
+          <spacer name="auth_si_spacer_v_middle">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
            </property>
@@ -192,7 +192,7 @@ QTabWidget::pane {
           </spacer>
          </item>
          <item row="5" column="2">
-          <spacer name="onl_spacer_margin_bottom">
+          <spacer name="auth_si_spacer_bottom">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
            </property>
@@ -208,7 +208,7 @@ QTabWidget::pane {
           </spacer>
          </item>
          <item row="4" column="4">
-          <spacer name="onl_spacer_margin_right">
+          <spacer name="auth_si_spacer_right">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -221,7 +221,7 @@ QTabWidget::pane {
           </spacer>
          </item>
          <item row="1" column="0" colspan="5">
-          <widget class="QLabel" name="onl_auth_label">
+          <widget class="QLabel" name="auth_si_label">
            <property name="font">
             <font>
              <family>Arial</family>
@@ -229,7 +229,7 @@ QTabWidget::pane {
             </font>
            </property>
            <property name="text">
-            <string>Login or register using online database.</string>
+            <string>Sign In by credentials or re-use saved session.</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -237,7 +237,7 @@ QTabWidget::pane {
           </widget>
          </item>
          <item row="4" column="0">
-          <spacer name="onl_spacer_margin_left">
+          <spacer name="auth_si_spacer_left">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -250,7 +250,7 @@ QTabWidget::pane {
           </spacer>
          </item>
          <item row="4" column="1">
-          <widget class="QFrame" name="onl_si_form">
+          <widget class="QFrame" name="credentials_si_form">
            <layout class="QVBoxLayout" name="onl_su_form_l_2">
             <property name="leftMargin">
              <number>10</number>
@@ -265,14 +265,14 @@ QTabWidget::pane {
              <number>10</number>
             </property>
             <item>
-             <widget class="QLabel" name="onl_si_label">
+             <widget class="QLabel" name="credentials_si_label">
               <property name="font">
                <font>
                 <pointsize>30</pointsize>
                </font>
               </property>
               <property name="text">
-               <string>Sign In</string>
+               <string>Credentials</string>
               </property>
               <property name="scaledContents">
                <bool>false</bool>
@@ -283,9 +283,12 @@ QTabWidget::pane {
              </widget>
             </item>
             <item>
-             <spacer name="onl_spacer_margin_si_top">
+             <spacer name="credentials_si_top_spacer">
               <property name="orientation">
                <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
               </property>
               <property name="sizeHint" stdset="0">
                <size>
@@ -296,14 +299,14 @@ QTabWidget::pane {
              </spacer>
             </item>
             <item>
-             <widget class="QLineEdit" name="onl_si_username_input">
+             <widget class="QLineEdit" name="credentials_si_username_input">
               <property name="placeholderText">
                <string>username</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="onl_si_pass_input">
+             <widget class="QLineEdit" name="credentials_si_pass_input">
               <property name="echoMode">
                <enum>QLineEdit::Password</enum>
               </property>
@@ -313,7 +316,14 @@ QTabWidget::pane {
              </widget>
             </item>
             <item>
-             <spacer name="onl_spacer_margin_si_bottom">
+             <widget class="QCheckBox" name="credentials_remember_session">
+              <property name="text">
+               <string>Remember me</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="credentials_si_bottom_spacer">
               <property name="orientation">
                <enum>Qt::Vertical</enum>
               </property>
@@ -326,7 +336,7 @@ QTabWidget::pane {
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="onl_si_btn">
+             <widget class="QPushButton" name="credentials_si_submit_btn">
               <property name="enabled">
                <bool>true</bool>
               </property>
@@ -358,7 +368,7 @@ QTabWidget::pane {
           </widget>
          </item>
          <item row="4" column="3">
-          <widget class="QFrame" name="onl_su_form">
+          <widget class="QFrame" name="session_si_form">
            <layout class="QVBoxLayout" name="onl_su_form_l">
             <property name="leftMargin">
              <number>10</number>
@@ -373,14 +383,14 @@ QTabWidget::pane {
              <number>10</number>
             </property>
             <item>
-             <widget class="QLabel" name="onl_su_label">
+             <widget class="QLabel" name="session_si_label">
               <property name="font">
                <font>
                 <pointsize>30</pointsize>
                </font>
               </property>
               <property name="text">
-               <string>Sign Up</string>
+               <string>Saved Sessions</string>
               </property>
               <property name="scaledContents">
                <bool>false</bool>
@@ -391,249 +401,36 @@ QTabWidget::pane {
              </widget>
             </item>
             <item>
-             <spacer name="onl_spacer_margin_su_top">
+             <spacer name="session_si_spacer_top">
               <property name="orientation">
                <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
               </property>
               <property name="sizeHint" stdset="0">
                <size>
                 <width>20</width>
-                <height>40</height>
+                <height>35</height>
                </size>
               </property>
              </spacer>
             </item>
             <item>
-             <widget class="QLineEdit" name="onl_su_username_input">
-              <property name="placeholderText">
-               <string>username</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="onl_su_email_input">
-              <property name="placeholderText">
-               <string>email</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="onl_su_pass_input">
-              <property name="echoMode">
-               <enum>QLineEdit::Password</enum>
-              </property>
-              <property name="placeholderText">
-               <string>password</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="onl_su_rpass_input">
-              <property name="echoMode">
-               <enum>QLineEdit::Password</enum>
-              </property>
-              <property name="placeholderText">
-               <string>repeat password</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="onl_spacer_margin_su_bottom">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
+             <widget class="QComboBox" name="session_si_saved_users_cb">
+              <property name="maximumSize">
                <size>
-                <width>20</width>
-                <height>40</height>
+                <width>16777215</width>
+                <height>16777215</height>
                </size>
               </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QPushButton" name="onl_su_btn">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>211</width>
-                <height>36</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Sign Up</string>
-              </property>
-              <property name="icon">
-               <iconset resource="resources.qrc">
-                <normaloff>:/icons/register</normaloff>:/icons/register</iconset>
-              </property>
-              <property name="iconSize">
-               <size>
-                <width>20</width>
-                <height>20</height>
-               </size>
-              </property>
-              <property name="shortcut">
-               <string>Return</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="auth_offline_tab">
-        <attribute name="title">
-         <string>Offline</string>
-        </attribute>
-        <layout class="QGridLayout" name="gridLayout_3">
-         <item row="4" column="1">
-          <spacer name="off_spacer_margin_bottom">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>15</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="3" column="2">
-          <spacer name="off_spacer_margin_right">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>200</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="3" column="0">
-          <spacer name="off_spacer_margin_left">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>200</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="1" column="1">
-          <widget class="QLabel" name="off_auth_label">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <italic>true</italic>
-            </font>
-           </property>
-           <property name="text">
-            <string>Relogin into old-saved sessions.</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <spacer name="off_spacer_margin_top">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>15</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="2" column="1">
-          <spacer name="off_spacer_margin_middle">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>15</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="3" column="1">
-          <widget class="QFrame" name="off_si_form">
-           <layout class="QVBoxLayout" name="off_si_form_l">
-            <property name="leftMargin">
-             <number>10</number>
-            </property>
-            <property name="topMargin">
-             <number>10</number>
-            </property>
-            <property name="rightMargin">
-             <number>10</number>
-            </property>
-            <property name="bottomMargin">
-             <number>10</number>
-            </property>
-            <item>
-             <widget class="QLabel" name="off_si_label">
-              <property name="font">
-               <font>
-                <pointsize>30</pointsize>
-               </font>
-              </property>
-              <property name="text">
-               <string>Sign In</string>
-              </property>
-              <property name="scaledContents">
-               <bool>false</bool>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="verticalSpacer_5">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>20</width>
-                <height>40</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QComboBox" name="off_si_savedUsers">
               <property name="placeholderText">
                <string>&lt;select username&gt;</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="off_si_pass_input">
+             <widget class="QLineEdit" name="session_si_pass_input">
               <property name="echoMode">
                <enum>QLineEdit::Password</enum>
               </property>
@@ -643,7 +440,7 @@ QTabWidget::pane {
              </widget>
             </item>
             <item>
-             <spacer name="verticalSpacer_6">
+             <spacer name="session_si_spacer_bottom">
               <property name="orientation">
                <enum>Qt::Vertical</enum>
               </property>
@@ -656,7 +453,7 @@ QTabWidget::pane {
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="off_si_btn">
+             <widget class="QPushButton" name="session_si_submit_btn">
               <property name="enabled">
                <bool>true</bool>
               </property>
@@ -689,10 +486,391 @@ QTabWidget::pane {
          </item>
         </layout>
        </widget>
+       <widget class="QWidget" name="auth_su_tab">
+        <attribute name="title">
+         <string>Sign Up</string>
+        </attribute>
+        <layout class="QGridLayout" name="gridLayout_3">
+         <item row="3" column="0">
+          <spacer name="auth_su_spacer_left">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>200</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="3" column="2">
+          <spacer name="auth_su_spacer_right">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>200</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="4" column="1">
+          <spacer name="auth_su_spacer_bottom">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Fixed</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>15</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLabel" name="auth_su_label">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+             <italic>true</italic>
+            </font>
+           </property>
+           <property name="text">
+            <string>Create new account.</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <spacer name="auth_su_spacer_v_middle">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Fixed</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>15</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="0" column="1">
+          <spacer name="auth_su_spacer_top">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Fixed</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>15</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="3" column="1">
+          <widget class="QFrame" name="auth_su_form">
+           <property name="minimumSize">
+            <size>
+             <width>462</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <layout class="QVBoxLayout" name="off_si_form_l">
+            <property name="leftMargin">
+             <number>10</number>
+            </property>
+            <property name="topMargin">
+             <number>10</number>
+            </property>
+            <property name="rightMargin">
+             <number>10</number>
+            </property>
+            <property name="bottomMargin">
+             <number>10</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="su_form_label">
+              <property name="font">
+               <font>
+                <pointsize>30</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Sign Up</string>
+              </property>
+              <property name="scaledContents">
+               <bool>false</bool>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="su_form_spacer_top">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="su_form_data">
+              <item>
+               <layout class="QVBoxLayout" name="form_data_1">
+                <item>
+                 <widget class="QLineEdit" name="su_form_username_input">
+                  <property name="minimumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="placeholderText">
+                   <string>username</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="su_form_pass_input">
+                  <property name="minimumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="echoMode">
+                   <enum>QLineEdit::Password</enum>
+                  </property>
+                  <property name="placeholderText">
+                   <string>password</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="su_form_rpass_input">
+                  <property name="minimumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="echoMode">
+                   <enum>QLineEdit::Password</enum>
+                  </property>
+                  <property name="placeholderText">
+                   <string>repeat password</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <spacer name="su_form_spacer_middle">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <layout class="QVBoxLayout" name="form_data_2">
+                <item>
+                 <widget class="QLineEdit" name="su_form_email_input">
+                  <property name="minimumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="placeholderText">
+                   <string>email</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="su_form_sq_cb">
+                  <property name="minimumSize">
+                   <size>
+                    <width>208</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>320</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="placeholderText">
+                   <string>&lt;Select secret question&gt;</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="su_form_sq_input">
+                  <property name="minimumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>211</width>
+                    <height>21</height>
+                   </size>
+                  </property>
+                  <property name="placeholderText">
+                   <string>answer</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <spacer name="su_form_spacer_bottom">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="su_submit_layout">
+              <item>
+               <spacer name="submit_layout_spacer_left">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="su_submit_btn">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>211</width>
+                  <height>36</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>211</width>
+                  <height>36</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Sign Up</string>
+                </property>
+                <property name="icon">
+                 <iconset resource="resources.qrc">
+                  <normaloff>:/icons/register</normaloff>:/icons/register</iconset>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>20</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="shortcut">
+                 <string>Return</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="submit_layout_spacer_right">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
       </widget>
      </item>
      <item>
-      <spacer name="spacer_margin_top">
+      <spacer name="content_spacer_middle">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>
@@ -708,9 +886,9 @@ QTabWidget::pane {
       </spacer>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <layout class="QHBoxLayout" name="exit_layout">
        <item>
-        <spacer name="spacer_margin_left">
+        <spacer name="exit_spacer_left">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -752,7 +930,7 @@ QTabWidget::pane {
         </widget>
        </item>
        <item>
-        <spacer name="spacer_margin_right">
+        <spacer name="exit_spacer_right">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -770,7 +948,7 @@ QTabWidget::pane {
       </layout>
      </item>
      <item>
-      <spacer name="spacer_margin_bottom">
+      <spacer name="content_spacer_bottom">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
        </property>

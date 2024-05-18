@@ -28,11 +28,11 @@ private slots:
 
     void on_exit_btn_clicked();
 
-    void on_onl_si_btn_clicked();
+    void on_credentials_si_submit_btn_clicked();
 
-    void on_onl_su_btn_clicked();
+    void on_session_si_submit_btn_clicked();
 
-    void on_off_si_btn_clicked();
+    void on_su_submit_btn_clicked();
 
 private:
     Ui::AuthForm *ui;

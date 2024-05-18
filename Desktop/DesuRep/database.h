@@ -22,24 +22,16 @@ public:
     ~Database();
 
 public:
-    // Databases
-    QList<int> getDBStatus() const { return {local.isOpen(), remote.isOpen()}; }
-
     // User Methods
+    QString getUserToken(QString username, QString password);
+
     User *SignInUser(QString login, QString pass, QString mode);
     User *SignUpUser(QString username, QString email, QString pass);
-    QList<QString> GetLocallySavedUsers();
-    void SaveUserLocal(User::Data *data, QString mode);
-
-    // Files Methods
-    QList<File> *getFiles(QString uploader);
-    void updateFile(QJsonObject editedData);
-    bool uploadFile(File file_to_upload);
-    bool deleteFile(int fileId);
+    QList<QString> getLocallySavedUserSessions();
+    void saveUserSessionLocal(User::Data *data, const QString &token);
 
 private:
     QSqlDatabase local;
-    QSqlDatabase remote;
 };
 
 #endif // DATABASE_H

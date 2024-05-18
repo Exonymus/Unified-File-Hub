@@ -20,4 +20,5 @@ void User::setData(Data set_data)
     data.secret_num = set_data.secret_num;
     data.secret_answer = set_data.secret_answer;
     data.is_banned = set_data.is_banned;
+    data.reg_date = set_data.reg_date;
 }

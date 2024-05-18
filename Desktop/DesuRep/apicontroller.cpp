@@ -225,6 +225,7 @@ User::Data ApiController::createUserDataObject(const QJsonObject& userObject)
         userObject["secret_answer"].toString(),
         "passwordHash",
         int(userObject["is_banned"].toBool()),
+        QDateTime::fromString(userObject["reg_date"].toString(), Qt::ISODate)
     };
 
     return data;
@@ -232,32 +233,30 @@ User::Data ApiController::createUserDataObject(const QJsonObject& userObject)
 
 
 // Editing User metadata in UFH Storage
-void ApiController::editUser(User &session, const QString &email)
+void ApiController::editUser(User &session, const QJsonObject &changedUserMetadata, const QString change_mode)
 {
-    QUrl apiUrl(BASE_URL + "users/edit");
-    QUrlQuery query;
-
-    query.addQueryItem("email", email);
-
-    apiUrl.setQuery(query);
+    QUrl apiUrl(BASE_URL + "users/edit_" + change_mode);
 
     QNetworkRequest request(apiUrl);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader(QByteArray("Authorization"),
                          QString("bearer %1").arg(session.getToken()).toUtf8());
 
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
+    QJsonDocument jsonDoc(changedUserMetadata);
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Compact);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        onEditUserFinished(reply);
+    QNetworkReply *reply = networkManager->post(request, jsonData);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, change_mode]() {
+        onEditUserFinished(reply, change_mode);
     });
 }
 
-void ApiController::onEditUserFinished(QNetworkReply *reply)
+void ApiController::onEditUserFinished(QNetworkReply *reply, QString change_mode)
 {
     if (reply->error() == QNetworkReply::NoError)
     {
-        emit userEditSucceed();
+        emit userEditSucceed(change_mode);
     }
     else
     {

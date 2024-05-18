@@ -14,6 +14,7 @@ import cruds.user as crud
 from database import get_db
 from env import JWT_EXPIRE
 from schemas import User, UserMetadata, Token
+from schemas import EmailUpdateRequest, PasswordUpdateRequest, SQUpdateRequest
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/signin")
@@ -78,15 +79,62 @@ async def get_user_info(
     return current_user
 
 
-@router.post("/edit")
-async def edit_user(
+@router.post("/edit_email")
+async def edit_user_email(
         current_user: Annotated[User, Depends(security.get_current_active_user)],
-        email: EmailStr,
+        update_metadata: EmailUpdateRequest,
         db: Session = Depends(get_db)
 ):
     try:
         db.begin()
-        crud.update_user(user_id=current_user.id, email=email, db=db)
+        crud.update_user_email(user_id=current_user.id, email=update_metadata.email, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to edit user: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.post("/edit_password")
+async def edit_user_password(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        update_metadata: PasswordUpdateRequest,
+        db: Session = Depends(get_db)
+):
+    try:
+        db.begin()
+        crud.update_user_password(user_id=current_user.id, password=update_metadata.password, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to edit user: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.post("/edit_secret")
+async def edit_user_secret(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        update_metadata: SQUpdateRequest,
+        db: Session = Depends(get_db)
+):
+    try:
+        db.begin()
+        crud.update_user_secret(user_id=current_user.id, secret_num=update_metadata.secret_num,
+                                secret_answer=update_metadata.secret_answer, db=db)
         db.commit()
     except HTTPException as http_err:
         db.rollback()

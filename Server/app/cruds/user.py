@@ -42,7 +42,7 @@ def create_user(metadata: UserMetadata, db: Session) -> None:
                             detail=f"Failed to create user: {e}")
 
 
-def update_user(user_id: UUID, email: EmailStr, db: Session) -> None:
+def update_user_email(user_id: UUID, email: EmailStr, db: Session) -> None:
     """
         Update user email in the database.
 
@@ -57,6 +57,46 @@ def update_user(user_id: UUID, email: EmailStr, db: Session) -> None:
                             detail="User not found.")
 
     setattr(user, "email", email)
+
+
+def update_user_password(user_id: UUID, password: str, db: Session) -> None:
+    """
+        Update user password in the database.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            password (str): Updated password.
+            db (Session): The database session.
+    """
+    user = db.query(UserTable).get(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User not found.")
+
+    hashed_password = get_password_hash(password)
+    setattr(user, "hashed_password", hashed_password)
+
+
+def update_user_secret(user_id: UUID, secret_num: int,
+                       secret_answer: str, db: Session) -> None:
+    """
+        Update user secret question in the database.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            secret_num (int): Updated secret num.
+            secret_answer (str): Updated secret answer.
+            db (Session): The database session.
+    """
+    user = db.query(UserTable).get(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User not found.")
+
+    secret_answer_hash = get_password_hash(secret_answer)
+
+    setattr(user, "secret_num", secret_num)
+    setattr(user, "secret_answer", secret_answer_hash)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

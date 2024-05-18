@@ -72,7 +72,6 @@ void Database::saveUserSessionLocal(User::Data *data, const QString &token)
         updateSavedUser.bindValue(":hashed_password", data->password);
         updateSavedUser.bindValue(":session_token", token);
         updateSavedUser.bindValue(":username", data->username);
-
         updateSavedUser.exec();
     }
     else

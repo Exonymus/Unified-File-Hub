@@ -9,7 +9,15 @@ Database *database = new Database();
 
 ApiController *webApi = new ApiController();
 
-bool isOfflineMode = false;
+
+QStringList secret_questions =
+{
+    "What is your favorite color?",
+    "What was the name of your first pet?",
+    "What is your mother’s maiden name?",
+    "What is the name of the city where you were born?",
+    "What was your first car?"
+};
 
 void switchBtn(QPushButton *btn, bool state)
 {

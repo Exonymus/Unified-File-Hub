@@ -21,10 +21,10 @@ class User(BaseModel):
     secret_num: int
     secret_answer: str
     is_banned: bool
+    reg_date: datetime
 
 
 class UserInDB(User):
-    reg_date: datetime
     hashed_password: str
 
 
@@ -32,5 +32,18 @@ class UserMetadata(BaseModel):
     username: str
     email: EmailStr
     password: str
+    secret_num: int
+    secret_answer: str
+
+
+class EmailUpdateRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordUpdateRequest(BaseModel):
+    password: str
+
+
+class SQUpdateRequest(BaseModel):
     secret_num: int
     secret_answer: str

@@ -17,6 +17,7 @@ public:
         QString secret_answer;
         QString password;
         int is_banned;
+        QDateTime reg_date;
     };
 
     struct Token
@@ -37,9 +38,12 @@ public:
     QString getEmail() const { return data.email; }
     int getSecretNum() const { return data.secret_num; }
     QString getSecretAnswer() const { return data.secret_answer; }
+    QString getPassword() const { return data.password; }
+    QDateTime getRegDate() const { return data.reg_date; }
 
     void setEmail(QString newEmail) { data.email = newEmail; }
     void setPassword(QString passHash) { data.password = passHash; }
+    void setSecret(int secretNum, QString secretAnswer) { data.secret_num = secretNum; data.secret_answer = secretAnswer; }
 
 
     QString getToken() const { return token.value; }

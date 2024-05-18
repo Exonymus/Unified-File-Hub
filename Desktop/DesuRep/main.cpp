@@ -10,15 +10,15 @@ int main(int argc, char *argv[])
     windControl->windows["a"] = new AuthForm();
     windControl->updates["a"] = true;
 
-    // Check Databases
-    QList dbStatus = database->getDBStatus();
-    if (dbStatus[0] == 0) {
-        QMessageBox::critical(0,"","  ⚠ Local DB error\n\n" "Data base is out of range!");
-        exit(-1);
-    } else if (dbStatus[1] == 0) {
-        QMessageBox::critical(0,"","  ⚠ Remote DB error\n\n" "Data base is out of range!");
-        exit(-1);
-    }
+    // Check Server state
+    webApi->checkApiAvailability([](bool isAvailable) {
+        if (isAvailable) {
+            qDebug() << "API is available";
+        } else {
+            QMessageBox::critical(0,"","  ⚠ Connection error\n\n" "App Server is out of range!");
+            exit(-1);
+        }
+    });
 
     windControl->windows["m"] = new MainWindow();
     windControl->updates["m"] = false;

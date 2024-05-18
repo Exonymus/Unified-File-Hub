@@ -6,6 +6,9 @@
 #include <QDir>
 #include <QFile>
 #include "QTreeWidget"
+#include <QRegularExpression>
+#include <QMessageBox>
+#include <QRegularExpressionValidator>
 
 #include "globals.h"
 #include "filetreewidget.h"
@@ -56,11 +59,13 @@ private slots:
 
     void on_actionEdit_triggered();
 
-    void on_edit_profile_btn_clicked();
+    void on_change_email_btn_clicked();
 
     void on_change_pass_btn_clicked();
 
     void updateStorageUsage();
+
+    void on_change_sq_btn_clicked();
 
 private:
     QTimer *actionsTimer;
@@ -75,12 +80,12 @@ private:
     //Storages
     FileTreeWidget *desuStorage;
 
-    QString changedEmail;
-    QString newPass;
+    QJsonObject changedUserMetadata;
 
     bool fileOperationInProgress;
 
     bool showChangeEmailDialog();
     bool showChangePasswordDialog();
+    bool showSecretQuestionRecoveryDialog();
 };
 #endif // MAINWINDOW_H

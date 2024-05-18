@@ -109,10 +109,10 @@ void AuthForm::on_exit_btn_clicked()
 void AuthForm::on_credentials_si_submit_btn_clicked()
 {
     QString username = ui->credentials_si_username_input->text();
-    QString pass = ui->credentials_si_pass_input->text();
-    QString passHash = Enhasher::hashPassword(pass);
+    QString password = ui->credentials_si_pass_input->text();
+    QString passHash = Enhasher::hashPassword(password);
 
-    webApi->authenticate(*windControl->session, username, pass);
+    webApi->authenticate(*windControl->session, username, password);
     windControl->session->setPassword(passHash);
 }
 
@@ -151,6 +151,7 @@ void AuthForm::on_session_si_submit_btn_clicked()
 {
     QString username = ui->session_si_saved_users_cb->currentText();
     QString password = ui->session_si_pass_input->text();
+    QString passHash = Enhasher::hashPassword(password);
 
     QString token = database->getUserToken(username, password);
     if (token.contains("ERROR"))
@@ -161,6 +162,7 @@ void AuthForm::on_session_si_submit_btn_clicked()
     else
     {
         windControl->session->setTokenValue(token);
+        windControl->session->setPassword(passHash);
         webApi->getUserInfo(*windControl->session);
         ui->session_si_saved_users_cb->setCurrentIndex(-1);
         ui->session_si_pass_input->clear();

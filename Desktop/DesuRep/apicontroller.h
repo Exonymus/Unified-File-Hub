@@ -62,7 +62,7 @@ public:
     void getUserFiles(User &session, QList<File> &files);
 
     // Метод для получения файлов пользователя
-    void editUser(User &session, const QString &email);
+    void editUser(User &session, const QJsonObject &changedUserMetadata, const QString change_mode);
 
 private slots:
     void onCopyFileFinished(QNetworkReply *reply);
@@ -85,7 +85,7 @@ private slots:
 
     void onRequestFinished(QNetworkReply *reply);
 
-    void onEditUserFinished(QNetworkReply *reply);
+    void onEditUserFinished(QNetworkReply *reply, QString change_mode);
 
 private:
     void handleApiResponse(const QString &operation, QNetworkReply *reply);
@@ -106,7 +106,7 @@ signals:
     void authSucceed();
     void authFailed(const QString message);
 
-    void userEditSucceed();
+    void userEditSucceed(const QString message);
     void userEditFailed();
 
     void refreshDesuFiles();
