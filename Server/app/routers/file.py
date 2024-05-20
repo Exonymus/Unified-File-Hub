@@ -68,7 +68,7 @@ async def get_user_files(
         db: Session = Depends(get_db)):
     try:
         files = crud.get_user_files_metadata(user_id=current_user.id, db=db)
-        return {"data": {index: file.to_json() for index, file in enumerate(files)}}
+        return {"data": {index: file.to_json(db) for index, file in enumerate(files)}}
     except HTTPException as http_err:
         raise http_err
     except Exception as e:

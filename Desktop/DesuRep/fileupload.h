@@ -44,8 +44,8 @@ private:
     QLineEdit *fileNameLineEdit;
     QLineEdit *filePathLineEdit;
     QTextEdit *descriptionTextEdit;
-    QLineEdit *authorLineEdit;
-    QLineEdit *themeLineEdit;
+    QLineEdit *categoryLineEdit;
+    QLineEdit *tagLineEdit;
     QCheckBox *isPublicCheckBox;
     QPushButton *fileUploadBtn;
     QByteArray fByteArray;

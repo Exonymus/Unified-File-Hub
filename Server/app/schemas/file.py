@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from uuid import UUID
 
 
 class File(BaseModel):
@@ -7,8 +6,8 @@ class File(BaseModel):
     path: str
     mime_type: str
     description: str
-    author: str
-    theme: str
+    category: str
+    tag: str
     is_public: bool
 
     class Config:
@@ -19,8 +18,8 @@ class FileUpdate(BaseModel):
     name: str
     path: str
     description: str
-    author: str
-    theme: str
+    category: str
+    tag: str
     is_public: bool
 
     class Config:

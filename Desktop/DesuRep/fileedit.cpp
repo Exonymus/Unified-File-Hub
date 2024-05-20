@@ -23,17 +23,17 @@ FileEditDialog::FileEditDialog(QWidget *parent) : QDialog(parent)
     descriptionTextEdit->setMinimumWidth(260);
     formLayout->addRow("Description:", descriptionTextEdit);
 
-    // Author
-    authorLineEdit = new QLineEdit(this);
-    authorLineEdit->setMaximumWidth(260);
-    authorLineEdit->setMinimumWidth(260);
-    formLayout->addRow("Author:", authorLineEdit);
+    // Category
+    categoryLineEdit = new QLineEdit(this);
+    categoryLineEdit->setMaximumWidth(260);
+    categoryLineEdit->setMinimumWidth(260);
+    formLayout->addRow("Category:", categoryLineEdit);
 
-    // Theme
-    themeLineEdit = new QLineEdit(this);
-    themeLineEdit->setMaximumWidth(260);
-    themeLineEdit->setMinimumWidth(260);
-    formLayout->addRow("Theme:", themeLineEdit);
+    // Tag
+    tagLineEdit = new QLineEdit(this);
+    tagLineEdit->setMaximumWidth(260);
+    tagLineEdit->setMinimumWidth(260);
+    formLayout->addRow("Tag:", tagLineEdit);
 
     // Is Public
     isPublicCheckBox = new QCheckBox("Public", this);
@@ -62,8 +62,8 @@ void FileEditDialog::setFileProperties(QJsonObject data)
     fileNameLineEdit->setText(data["name"].toString());
     filePathLineEdit->setText(data["path"].toString());
     descriptionTextEdit->setText(data["description"].toString());
-    authorLineEdit->setText(data["author"].toString());
-    themeLineEdit->setText(data["theme"].toString());
+    categoryLineEdit->setText(data["category"].toString());
+    tagLineEdit->setText(data["tag"].toString());
     isPublicCheckBox->setChecked(data["is_public"].toBool());
 }
 
@@ -74,8 +74,8 @@ QJsonObject FileEditDialog::getEditedData() const
     editedData["name"] = fileNameLineEdit->text();
     editedData["path"] = filePathLineEdit->text();
     editedData["description"] = descriptionTextEdit->toPlainText();
-    editedData["author"] = authorLineEdit->text();
-    editedData["theme"] = themeLineEdit->text();
+    editedData["category"] = categoryLineEdit->text();
+    editedData["tag"] = tagLineEdit->text();
     editedData["is_public"] = int(isPublicCheckBox->isChecked());
 
     return editedData;

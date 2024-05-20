@@ -28,17 +28,17 @@ FileUploadDialog::FileUploadDialog(QWidget *parent) : QDialog(parent)
     descriptionTextEdit->setMinimumWidth(260);
     formLayout->addRow("Description:", descriptionTextEdit);
 
-    // Author
-    authorLineEdit = new QLineEdit(this);
-    authorLineEdit->setMaximumWidth(260);
-    authorLineEdit->setMinimumWidth(260);
-    formLayout->addRow("Author:", authorLineEdit);
+    // Category
+    categoryLineEdit = new QLineEdit(this);
+    categoryLineEdit->setMaximumWidth(260);
+    categoryLineEdit->setMinimumWidth(260);
+    formLayout->addRow("Category:", categoryLineEdit);
 
-    // Theme
-    themeLineEdit = new QLineEdit(this);
-    themeLineEdit->setMaximumWidth(260);
-    themeLineEdit->setMinimumWidth(260);
-    formLayout->addRow("Theme:", themeLineEdit);
+    // Tag
+    tagLineEdit = new QLineEdit(this);
+    tagLineEdit->setMaximumWidth(260);
+    tagLineEdit->setMinimumWidth(260);
+    formLayout->addRow("Tag:", tagLineEdit);
 
     // Is Public
     isPublicCheckBox = new QCheckBox("Public", this);
@@ -99,8 +99,8 @@ void FileUploadDialog::clearData() {
     fileNameLineEdit->clear();
     filePathLineEdit->clear();
     descriptionTextEdit->clear();
-    authorLineEdit->clear();
-    themeLineEdit->clear();
+    categoryLineEdit->clear();
+    tagLineEdit->clear();
     isPublicCheckBox->setChecked(false);
     fType = "";
     fByteArray.clear();
@@ -111,8 +111,8 @@ void FileUploadDialog::fieldsCheck()
 {
     if (fileNameLineEdit->text().isEmpty() ||
         descriptionTextEdit->toPlainText().isEmpty() ||
-        authorLineEdit->text().isEmpty() ||
-        themeLineEdit->text().isEmpty() ||
+        categoryLineEdit->text().isEmpty() ||
+        tagLineEdit->text().isEmpty() ||
         fByteArray.isEmpty() || fType == "") {
         switchBtn(fileUploadBtn, false);
     } else {
@@ -131,8 +131,8 @@ File FileUploadDialog::getUploadData() const
     uploadData["owner_id"] = windControl->session->getUsername();
     uploadData["path"] = filePathLineEdit->text().isEmpty()? "." : filePathLineEdit->text();
     uploadData["description"] = descriptionTextEdit->toPlainText();
-    uploadData["author"] = authorLineEdit->text();
-    uploadData["theme"] = themeLineEdit->text();
+    uploadData["category"] = categoryLineEdit->text();
+    uploadData["tag"] = tagLineEdit->text();
     uploadData["is_public"] = int(isPublicCheckBox->isChecked());
     uploadData["BLOB"] = QString::fromStdString(fByteArray.toStdString());
 

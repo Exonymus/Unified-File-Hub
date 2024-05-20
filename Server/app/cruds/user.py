@@ -115,11 +115,12 @@ def recover_user(recover_metadata: RecoverRequest, db: Session) -> None:
             detail="User not found."
         )
 
-    if user.secret_num != recover_metadata.secret_num \
+    if user.email != recover_metadata.email \
+            or user.secret_num != recover_metadata.secret_num \
             or not verify_password(recover_metadata.secret_answer, user.secret_answer):
         raise HTTPException(
             status_code=status.HTTP_406_NOT_ACCEPTABLE,
-            detail="Bad secret question."
+            detail="Bad user credentials."
         )
 
     hashed_password = get_password_hash(recover_metadata.password)

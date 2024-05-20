@@ -51,6 +51,7 @@ class SQUpdateRequest(BaseModel):
 
 class RecoverRequest(BaseModel):
     username: str
+    email: EmailStr
     password: str
     secret_num: int
     secret_answer: str

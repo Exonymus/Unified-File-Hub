@@ -396,9 +396,10 @@ File ApiController::createFileObject(const QJsonObject& fileObject)
         {"path", fileObject["path"].toString()},
         {"mime_type", fileObject["mime_type"].toString()},
         {"description", fileObject["description"].toString()},
-        {"author", fileObject["author"].toString()},
-        {"theme", fileObject["theme"].toString()},
+        {"category", fileObject["category"].toString()},
+        {"tag", fileObject["tag"].toString()},
         {"is_public", fileObject["is_public"].toBool()},
+        {"owner", fileObject["owner"].toString()},
         {"owner_id", fileObject["owner_id"].toString()},
         {"upload_date", fileObject["upload_date"].toString().replace("T"," ")},
         {"size", fileObject["size"].toDouble() / (1024 * 1024)}

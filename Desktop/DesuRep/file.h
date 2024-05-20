@@ -21,8 +21,9 @@ public:
     QString getPath() const { return metaData["path"].toString(); }
     QString getType() const { return metaData["mime_type"].toString(); }
     QString getDescription() const { return metaData["description"].toString(); }
-    QString getAuthor() const { return metaData["author"].toString(); }
-    QString getTheme() const { return metaData["theme"].toString(); }
+    QString getCategory() const { return metaData["category"].toString(); }
+    QString getTag() const { return metaData["tag"].toString(); }
+    QString getOwner() const { return metaData["owner"].toString(); }
     QUuid getOwnerId() const { return QUuid(metaData["owner_id"].toString()); }
 
     bool isPublic() const { return metaData["is_public"].toBool(); }

@@ -185,13 +185,17 @@ bool AuthForm::showPasswordRecoveryDialog()
 {
     QDialog passwordRecoveryDialog(this);
     passwordRecoveryDialog.setWindowTitle("Recover User Account");
-    passwordRecoveryDialog.setFixedSize(300, 240);
+    passwordRecoveryDialog.setFixedSize(300, 260);
 
     QVBoxLayout *dialogLayout = new QVBoxLayout(&passwordRecoveryDialog);
 
     QLineEdit *usernameLineEdit = new QLineEdit(&passwordRecoveryDialog);
     usernameLineEdit->setPlaceholderText("username");
     dialogLayout->addWidget(usernameLineEdit);
+
+    QLineEdit *emailLineEdit = new QLineEdit(&passwordRecoveryDialog);
+    emailLineEdit->setPlaceholderText("email");
+    dialogLayout->addWidget(emailLineEdit);
 
     QComboBox *questionComboBox = new QComboBox(&passwordRecoveryDialog);
     questionComboBox->setCurrentIndex(-1);
@@ -211,10 +215,24 @@ bool AuthForm::showPasswordRecoveryDialog()
     QPushButton *confirmButton = new QPushButton("Recover", &passwordRecoveryDialog);
     dialogLayout->addWidget(confirmButton);
 
+    static const QRegularExpression emailRegex(R"((\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b))");
+
     connect(confirmButton, &QPushButton::clicked, this, [this, &passwordRecoveryDialog,
-            usernameLineEdit, questionComboBox, answerLineEdit, passwordLineEdit]() {
+            usernameLineEdit, emailLineEdit, questionComboBox, answerLineEdit, passwordLineEdit]() {
         if (usernameLineEdit->text().isEmpty()) {
             QMessageBox::warning(&passwordRecoveryDialog, "Invalid Username", "The username cannot be empty.");
+            return;
+        }
+
+        if (emailLineEdit->text().isEmpty()) {
+            QMessageBox::warning(&passwordRecoveryDialog, "Invalid Email", "The email cannot be empty.");
+            return;
+        }
+
+        QRegularExpressionMatch match = emailRegex.match(emailLineEdit->text());
+        if (!match.hasMatch()) {
+            QMessageBox::warning(&passwordRecoveryDialog, "Invalid Email", "Please enter a valid email address.");
+            emailLineEdit->clear();
             return;
         }
 
@@ -235,6 +253,7 @@ bool AuthForm::showPasswordRecoveryDialog()
 
         recoveryUserMetadata = QJsonObject{
             {"username", usernameLineEdit->text()},
+            {"email", emailLineEdit->text()},
             {"password", passwordLineEdit->text()},
             {"secret_num", questionComboBox->currentIndex()},
             {"secret_answer", answerLineEdit->text()}

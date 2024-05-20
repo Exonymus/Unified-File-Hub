@@ -167,18 +167,19 @@ void FileTreeWidget::setFileInfo(QTreeWidgetItem *item)
 
         QHash<QString, QString> displayKeys = {
             {"mime_type", "Type"},
-            {"author", "Author"},
+            {"path", "Path"},
             {"description", "Description"},
             {"upload_date", "Uploaded on"},
-            {"theme", "Theme"},
-            {"path", "Path"},
+            {"category", "Category"},
+            {"owner", "Owner"},
+            {"tag", "Tag"},
             {"is_public", "Publicity"},
             {"size", "Size"}
         };
 
         for (auto it = metaData.constBegin(); it != metaData.constEnd(); ++it) {
             QString key = it.key();
-            if (key == "id" || key == "name") continue;
+            if (key == "id" || key == "name" || key == "owner_id") continue;
 
             QString displayKey = displayKeys.value(key, key);
             QString value = it.value().toString();
