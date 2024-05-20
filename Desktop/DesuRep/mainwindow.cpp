@@ -65,7 +65,7 @@ MainWindow::MainWindow(QWidget *parent)
         QMessageBox::critical(this, tr("Download Error"), message);
     });
 
-    // Сигналы изменения почты
+    // Сигналы изменения пользователя
     connect(webApi, &ApiController::userEditSucceed, this, [this](const QString& message) {
         if (message == "email")
         {
@@ -316,6 +316,7 @@ bool MainWindow::showDeleteConfirmationDialog(QString fileName)
 bool MainWindow::showChangeEmailDialog()
 {
     QDialog changeEmailDialog(this);
+    changeEmailDialog.setWindowTitle("Change Account Email");
     changeEmailDialog.setFixedSize(300, 180);
 
     QVBoxLayout *dialogLayout = new QVBoxLayout(&changeEmailDialog);
@@ -372,6 +373,7 @@ bool MainWindow::showChangeEmailDialog()
 bool MainWindow::showChangePasswordDialog()
 {
     QDialog changePasswordDialog(this);
+    changePasswordDialog.setWindowTitle("Change Account Password");
     changePasswordDialog.setFixedSize(300, 180);
 
     QVBoxLayout *dialogLayout = new QVBoxLayout(&changePasswordDialog);
@@ -420,6 +422,7 @@ bool MainWindow::showChangePasswordDialog()
 bool MainWindow::showSecretQuestionRecoveryDialog()
 {
     QDialog secretQuestionDialog(this);
+    secretQuestionDialog.setWindowTitle("Restore Secret Question");
     secretQuestionDialog.setFixedSize(300, 240);
 
     QVBoxLayout *dialogLayout = new QVBoxLayout(&secretQuestionDialog);
@@ -446,7 +449,7 @@ bool MainWindow::showSecretQuestionRecoveryDialog()
     regDatehLineEdit->setPlaceholderText("MM/YYYY");
     dialogLayout->addWidget(regDatehLineEdit);
 
-    QPushButton *confirmButton = new QPushButton("Recover", &secretQuestionDialog);
+    QPushButton *confirmButton = new QPushButton("Restore", &secretQuestionDialog);
     dialogLayout->addWidget(confirmButton);
 
     connect(confirmButton, &QPushButton::clicked, this, [this, &secretQuestionDialog,

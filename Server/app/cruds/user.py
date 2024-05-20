@@ -7,8 +7,7 @@ from passlib.context import CryptContext
 from pydantic import EmailStr
 
 from models import User as UserTable, Role
-from schemas import UserInDB, UserMetadata
-
+from schemas import UserInDB, UserMetadata, RecoverRequest
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -97,6 +96,35 @@ def update_user_secret(user_id: UUID, secret_num: int,
 
     setattr(user, "secret_num", secret_num)
     setattr(user, "secret_answer", secret_answer_hash)
+
+
+def recover_user(recover_metadata: RecoverRequest, db: Session) -> None:
+    """
+        Recover user password using provided metadata.
+
+        Args:
+            recover_metadata (RecoverRequest): Metadata to recover user's password.
+            db (Session): The database session.
+    """
+    username: str = recover_metadata.username
+    user = db.query(UserTable).filter(UserTable.username == username).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found."
+        )
+
+    if user.secret_num != recover_metadata.secret_num \
+            or not verify_password(recover_metadata.secret_answer, user.secret_answer):
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail="Bad secret question."
+        )
+
+    hashed_password = get_password_hash(recover_metadata.password)
+
+    setattr(user, "hashed_password", hashed_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

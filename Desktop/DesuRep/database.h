@@ -23,12 +23,10 @@ public:
 
 public:
     // User Methods
-    QString getUserToken(QString username, QString password);
-
-    User *SignInUser(QString login, QString pass, QString mode);
-    User *SignUpUser(QString username, QString email, QString pass);
+    QString getUserToken(const QString username, const QString password);
     QList<QString> getLocallySavedUserSessions();
     void saveUserSessionLocal(User::Data *data, const QString &token);
+    void updateUserPasswordLocal(const QString username, const QString password);
 
 private:
     QSqlDatabase local;

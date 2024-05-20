@@ -64,6 +64,9 @@ public:
     // Метод для получения файлов пользователя
     void editUser(User &session, const QJsonObject &changedUserMetadata, const QString change_mode);
 
+    // Метод для восстановления пароля пользователя
+    void recoverUser(User &session, const QJsonObject &recoveryUserMetadata);
+
 private slots:
     void onCopyFileFinished(QNetworkReply *reply);
 
@@ -87,6 +90,8 @@ private slots:
 
     void onEditUserFinished(QNetworkReply *reply, QString change_mode);
 
+    void onRecoverUserFinished(QNetworkReply *reply);
+
 private:
     void handleApiResponse(const QString &operation, QNetworkReply *reply);
     void handleNetworkError(const QString &operation, QNetworkReply *reply);
@@ -108,6 +113,9 @@ signals:
 
     void userEditSucceed(const QString message);
     void userEditFailed();
+
+    void userRecoverSucceed();
+    void userRecoverFailed(const QString message);
 
     void refreshDesuFiles();
 

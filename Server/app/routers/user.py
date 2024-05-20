@@ -14,7 +14,8 @@ import cruds.user as crud
 from database import get_db
 from env import JWT_EXPIRE
 from schemas import User, UserMetadata, Token
-from schemas import EmailUpdateRequest, PasswordUpdateRequest, SQUpdateRequest
+from schemas import (EmailUpdateRequest, PasswordUpdateRequest,
+                     SQUpdateRequest, RecoverRequest)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/signin")
@@ -143,6 +144,28 @@ async def edit_user_secret(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Failed to edit user: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.post("/recover")
+async def recover_user(
+        recover_metadata: RecoverRequest,
+        db: Session = Depends(get_db)
+):
+    try:
+        db.begin()
+        crud.recover_user(recover_metadata=recover_metadata, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to recover user: {str(e)}")
     finally:
         db.close()
 

@@ -47,3 +47,10 @@ class PasswordUpdateRequest(BaseModel):
 class SQUpdateRequest(BaseModel):
     secret_num: int
     secret_answer: str
+
+
+class RecoverRequest(BaseModel):
+    username: str
+    password: str
+    secret_num: int
+    secret_answer: str

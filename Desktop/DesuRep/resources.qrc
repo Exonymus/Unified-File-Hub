@@ -22,5 +22,7 @@
         <file alias="gdrive">resources/icons/icon_btnGDrive.svg</file>
         <file alias="odrive">resources/icons/icon_btnODrive.svg</file>
         <file alias="cPass">resources/icons/icon_btnChangePass.png</file>
+        <file alias="cSQ">resources/icons/icon_btnChangeSQ.png</file>
+        <file alias="recovery">resources/icons/icon_btnRecovery.png</file>
     </qresource>
 </RCC>

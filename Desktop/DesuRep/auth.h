@@ -23,6 +23,8 @@ public:
 private:
     void authProceeded(QString authType);
 
+    bool showPasswordRecoveryDialog();
+
 private slots:
     void checkInputs();
 
@@ -34,9 +36,12 @@ private slots:
 
     void on_su_submit_btn_clicked();
 
+    void on_credentials_si_recover_clicked();
+
 private:
     Ui::AuthForm *ui;
     QTimer *timer;
+    QJsonObject recoveryUserMetadata;
 
 };
 

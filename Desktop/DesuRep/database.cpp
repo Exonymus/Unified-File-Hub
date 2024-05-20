@@ -24,7 +24,7 @@ Database::~Database()
 
 
 // Auth Methods
-QString Database::getUserToken(QString username, QString password)
+QString Database::getUserToken(const QString username, const QString password)
 {
     QString query = "SELECT * FROM users WHERE username = :username";
 
@@ -89,6 +89,35 @@ void Database::saveUserSessionLocal(User::Data *data, const QString &token)
 
         return;
     }
+}
+
+void Database::updateUserPasswordLocal(const QString username, const QString password)
+{
+    QString data_query = "SELECT * FROM users WHERE username = :username";
+    QSqlDatabase &src = local;
+
+    QSqlQuery user_data(src);
+    user_data.prepare(data_query);
+    user_data.bindValue(":username", username);
+
+    user_data.exec();
+
+    if (user_data.next())
+    {
+        QString update_query = "UPDATE users "
+                               "SET hashed_password = :hashed_password, "
+                               "WHERE username = :username";
+
+        QSqlQuery updateSavedUser(local);
+        updateSavedUser.prepare(update_query);
+        updateSavedUser.bindValue(":hashed_password", password);
+        updateSavedUser.exec();
+    }
+    else
+    {
+        qDebug() << "User not found in LocalDB error.";
+    }
+
 }
 
 QList<QString> Database::getLocallySavedUserSessions()

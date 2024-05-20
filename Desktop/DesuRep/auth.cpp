@@ -33,6 +33,20 @@ AuthForm::AuthForm(QWidget *parent) :
         windControl->clearSession();
     });
 
+    // Сигналы восстановления аккаунта пользователя
+    connect(webApi, &ApiController::userRecoverSucceed, this, [this]() {
+        QMessageBox::information(this, "Success", "Account recovery succeed.\n\n"
+                                " Please, proceed auth.");
+        database->updateUserPasswordLocal(recoveryUserMetadata.value("username").toString(),
+                                          recoveryUserMetadata.value("password").toString());
+        recoveryUserMetadata = QJsonObject();
+    });
+    connect(webApi, &ApiController::userRecoverFailed, this, [this](const QString& message) {
+        QMessageBox::critical(this, "Error", "⚠ Account recovery failed!\n\n"
+                              + message + " Please check your input.");
+        recoveryUserMetadata = QJsonObject();
+    });
+
     dropShadow(ui->content_title_label);
     windControl->PrepareWindow(this);
 }
@@ -95,8 +109,6 @@ void AuthForm::authProceeded(QString authType)
             ui->credentials_remember_session->setChecked(false);
         }
     }
-
-//    ui->pass->setText("");
 }
 
 
@@ -114,6 +126,28 @@ void AuthForm::on_credentials_si_submit_btn_clicked()
 
     webApi->authenticate(*windControl->session, username, password);
     windControl->session->setPassword(passHash);
+}
+
+void AuthForm::on_session_si_submit_btn_clicked()
+{
+    QString username = ui->session_si_saved_users_cb->currentText();
+    QString password = ui->session_si_pass_input->text();
+    QString passHash = Enhasher::hashPassword(password);
+
+    QString token = database->getUserToken(username, password);
+    if (token.contains("ERROR"))
+    {
+        QMessageBox::critical(this, "", "⚠ Sign in failed!\n\n" + token.split("_")[1]);
+        ui->session_si_pass_input->clear();
+    }
+    else
+    {
+        windControl->session->setTokenValue(token);
+        windControl->session->setPassword(passHash);
+        webApi->getUserInfo(*windControl->session);
+        ui->session_si_saved_users_cb->setCurrentIndex(-1);
+        ui->session_si_pass_input->clear();
+    }
 }
 
 
@@ -147,24 +181,79 @@ void AuthForm::on_su_submit_btn_clicked()
 }
 
 
-void AuthForm::on_session_si_submit_btn_clicked()
+bool AuthForm::showPasswordRecoveryDialog()
 {
-    QString username = ui->session_si_saved_users_cb->currentText();
-    QString password = ui->session_si_pass_input->text();
-    QString passHash = Enhasher::hashPassword(password);
+    QDialog passwordRecoveryDialog(this);
+    passwordRecoveryDialog.setWindowTitle("Recover User Account");
+    passwordRecoveryDialog.setFixedSize(300, 240);
 
-    QString token = database->getUserToken(username, password);
-    if (token.contains("ERROR"))
+    QVBoxLayout *dialogLayout = new QVBoxLayout(&passwordRecoveryDialog);
+
+    QLineEdit *usernameLineEdit = new QLineEdit(&passwordRecoveryDialog);
+    usernameLineEdit->setPlaceholderText("username");
+    dialogLayout->addWidget(usernameLineEdit);
+
+    QComboBox *questionComboBox = new QComboBox(&passwordRecoveryDialog);
+    questionComboBox->setCurrentIndex(-1);
+    questionComboBox->setPlaceholderText("<Select secret question>");
+    questionComboBox->addItems(secret_questions);
+    dialogLayout->addWidget(questionComboBox);
+
+    QLineEdit *answerLineEdit = new QLineEdit(&passwordRecoveryDialog);
+    answerLineEdit->setPlaceholderText("answer");
+    dialogLayout->addWidget(answerLineEdit);
+
+    QLineEdit *passwordLineEdit = new QLineEdit(&passwordRecoveryDialog);
+    passwordLineEdit->setPlaceholderText("new password");
+    passwordLineEdit->setEchoMode(QLineEdit::Password);
+    dialogLayout->addWidget(passwordLineEdit);
+
+    QPushButton *confirmButton = new QPushButton("Recover", &passwordRecoveryDialog);
+    dialogLayout->addWidget(confirmButton);
+
+    connect(confirmButton, &QPushButton::clicked, this, [this, &passwordRecoveryDialog,
+            usernameLineEdit, questionComboBox, answerLineEdit, passwordLineEdit]() {
+        if (usernameLineEdit->text().isEmpty()) {
+            QMessageBox::warning(&passwordRecoveryDialog, "Invalid Username", "The username cannot be empty.");
+            return;
+        }
+
+        if (questionComboBox->currentIndex() == -1) {
+            QMessageBox::warning(&passwordRecoveryDialog, "Invalid Question", "Please select a secret question.");
+            return;
+        }
+
+        if (answerLineEdit->text().isEmpty()) {
+            QMessageBox::warning(&passwordRecoveryDialog, "Invalid Answer", "The answer cannot be empty.");
+            return;
+        }
+
+        if (passwordLineEdit->text().isEmpty()) {
+            QMessageBox::warning(&passwordRecoveryDialog, "Invalid New password", "New password cannot be empty.");
+            return;
+        }
+
+        recoveryUserMetadata = QJsonObject{
+            {"username", usernameLineEdit->text()},
+            {"password", passwordLineEdit->text()},
+            {"secret_num", questionComboBox->currentIndex()},
+            {"secret_answer", answerLineEdit->text()}
+        };
+
+        passwordRecoveryDialog.accept();
+    });
+
+    QPushButton *cancelButton = new QPushButton("Cancel", &passwordRecoveryDialog);
+    dialogLayout->addWidget(cancelButton);
+    connect(cancelButton, &QPushButton::clicked, &passwordRecoveryDialog, &QDialog::reject);
+
+    return passwordRecoveryDialog.exec() == QDialog::Accepted;
+}
+
+void AuthForm::on_credentials_si_recover_clicked()
+{
+    if (showPasswordRecoveryDialog())
     {
-        QMessageBox::critical(this, "", "⚠ Sign in failed!\n\n" + token.split("_")[1]);
-        ui->session_si_pass_input->clear();
-    }
-    else
-    {
-        windControl->session->setTokenValue(token);
-        windControl->session->setPassword(passHash);
-        webApi->getUserInfo(*windControl->session);
-        ui->session_si_saved_users_cb->setCurrentIndex(-1);
-        ui->session_si_pass_input->clear();
+        webApi->recoverUser(*windControl->session, recoveryUserMetadata);
     }
 }

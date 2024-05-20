@@ -146,14 +146,30 @@ QTabWidget::pane {
          <string>Sign In</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_4">
-         <item row="4" column="2">
-          <spacer name="auth_si_spacer_h_middle">
+         <item row="1" column="0" colspan="5">
+          <widget class="QLabel" name="auth_si_label">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+             <italic>true</italic>
+            </font>
+           </property>
+           <property name="text">
+            <string>Sign In by credentials or re-use saved session.</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <spacer name="auth_si_spacer_left">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>39</width>
+             <width>40</width>
              <height>20</height>
             </size>
            </property>
@@ -166,22 +182,6 @@ QTabWidget::pane {
            </property>
            <property name="sizeType">
             <enum>QSizePolicy::Minimum</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>15</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="2" column="2">
-          <spacer name="auth_si_spacer_v_middle">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeType">
-            <enum>QSizePolicy::Fixed</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -207,43 +207,14 @@ QTabWidget::pane {
            </property>
           </spacer>
          </item>
-         <item row="4" column="4">
-          <spacer name="auth_si_spacer_right">
+         <item row="4" column="2">
+          <spacer name="auth_si_spacer_h_middle">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="1" column="0" colspan="5">
-          <widget class="QLabel" name="auth_si_label">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <italic>true</italic>
-            </font>
-           </property>
-           <property name="text">
-            <string>Sign In by credentials or re-use saved session.</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="0">
-          <spacer name="auth_si_spacer_left">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
+             <width>39</width>
              <height>20</height>
             </size>
            </property>
@@ -364,8 +335,41 @@ QTabWidget::pane {
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QPushButton" name="credentials_si_recover">
+              <property name="minimumSize">
+               <size>
+                <width>211</width>
+                <height>36</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Recover my account</string>
+              </property>
+              <property name="icon">
+               <iconset resource="resources.qrc">
+                <normaloff>:/icons/recovery</normaloff>:/icons/recovery</iconset>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
+         </item>
+         <item row="2" column="2">
+          <spacer name="auth_si_spacer_v_middle">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeType">
+            <enum>QSizePolicy::Fixed</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>15</height>
+            </size>
+           </property>
+          </spacer>
          </item>
          <item row="4" column="3">
           <widget class="QFrame" name="session_si_form">
@@ -483,6 +487,19 @@ QTabWidget::pane {
             </item>
            </layout>
           </widget>
+         </item>
+         <item row="4" column="4">
+          <spacer name="auth_si_spacer_right">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
          </item>
         </layout>
        </widget>

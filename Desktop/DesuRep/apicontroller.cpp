@@ -268,6 +268,54 @@ void ApiController::onEditUserFinished(QNetworkReply *reply, QString change_mode
 }
 
 
+// Recivering User password in UFH Storage
+void ApiController::recoverUser(User &session, const QJsonObject &recoveryUserMetadata)
+{
+    QUrl apiUrl(BASE_URL + "users/recover");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QJsonDocument jsonDoc(recoveryUserMetadata);
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = networkManager->post(request, jsonData);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onRecoverUserFinished(reply);
+    });
+}
+
+void ApiController::onRecoverUserFinished(QNetworkReply *reply)
+{
+    QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    if (statusCode.isValid())
+    {
+        if (statusCode.toInt() == 200)
+        {
+            emit userRecoverSucceed();
+        }
+        else if (statusCode.toInt() == 404)
+        {
+            emit userRecoverFailed("Account does not exist.");
+        }
+        else if (statusCode.toInt() == 406)
+        {
+            emit userRecoverFailed("User credentials invalid!");
+        }
+        else
+        {
+            emit userRecoverFailed("Unknown error occured!");
+            handleNetworkError("Recover User", reply);
+        }
+    }
+
+    reply->deleteLater();
+}
+
+
 // Getting User files in UFH Storage
 void ApiController::getUserFiles(User &session, QList<File> &files)
 {
