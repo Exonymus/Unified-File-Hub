@@ -392,6 +392,9 @@ font-weight: bold;</string>
                 <property name="value">
                  <number>0</number>
                 </property>
+                <property name="textVisible">
+                 <bool>true</bool>
+                </property>
                </widget>
               </item>
               <item row="2" column="0">
@@ -525,6 +528,11 @@ font-weight: bold;</string>
                   <height>50</height>
                  </size>
                 </property>
+                <property name="font">
+                 <font>
+                  <pointsize>11</pointsize>
+                 </font>
+                </property>
                 <property name="styleSheet">
                  <string notr="true"/>
                 </property>
@@ -556,6 +564,11 @@ font-weight: bold;</string>
                   <width>180</width>
                   <height>50</height>
                  </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>11</pointsize>
+                 </font>
                 </property>
                 <property name="styleSheet">
                  <string notr="true"/>

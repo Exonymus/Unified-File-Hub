@@ -48,7 +48,7 @@ private:
     QLineEdit *tagLineEdit;
     QCheckBox *isPublicCheckBox;
     QPushButton *fileUploadBtn;
-    QByteArray fByteArray;
+    QString fPath;
     QString fType;
     qreal spaceAvailableMB;
 };

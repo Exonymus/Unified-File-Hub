@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import EmailStr
 
-from models import User as UserTable, Role
+from models import User as UserTable, Role, GDConn
 from schemas import UserInDB, UserMetadata, RecoverRequest
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -126,6 +126,78 @@ def recover_user(recover_metadata: RecoverRequest, db: Session) -> None:
     hashed_password = get_password_hash(recover_metadata.password)
 
     setattr(user, "hashed_password", hashed_password)
+
+
+def add_google_connection(user_id: UUID, api_key: str, db: Session) -> None:
+    """
+        Add Google Drive connection using provided metadata.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            api_key (str): API-key to connect to the Google API.
+            db (Session): The database session.
+    """
+    try:
+        # Check existence
+        gd_conn = db.query(GDConn).filter(GDConn.api_key == api_key).first()
+        if gd_conn:
+            return
+
+        # Create a new Google Drive connection object with the provided metadata
+        api_token = GDConn(
+            id=uuid4(),
+            user_id=user_id,
+            api_key=api_key
+        )
+
+        # Add the new connection to the session
+        db.add(api_token)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create gdrive connection: {e}")
+
+
+def get_google_connection(user_id: UUID, db: Session) -> str:
+    """
+        Get Google Drive connection.
+
+        Args:
+            user_id (UUID): ID of the user, who owns api-key.
+            db (Session): The database session.
+
+        Returns:
+            str: Api key if found.
+    """
+    # Find Google Drive connection by User id
+    gd_conn = db.query(GDConn).filter(GDConn.user_id == user_id).first()
+
+    if not gd_conn:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Api-key not found."
+        )
+
+    return gd_conn.api_key
+
+
+def remove_google_connection(user_id: UUID, db: Session) -> None:
+    """
+        Remove user's Google Drive connection.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            db (Session): The database session.
+    """
+    try:
+        connection = db.query(GDConn).filter(GDConn.user_id == user_id).first()
+
+        if not connection:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Connection not found.")
+        db.delete(connection)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to remove gdrive connection: {e}")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

@@ -74,28 +74,30 @@ void FileUploadDialog::setRestrictions(qreal avSpace)
 
 void FileUploadDialog::selectFile()
 {
-    QString filePath = QFileDialog::getOpenFileName(this, tr("Select File"), QDir::homePath());
-    QFile file(filePath);
+    fPath = QFileDialog::getOpenFileName(this, tr("Select File"), QDir::homePath());
+    QFile file(fPath);
 
-    if (!filePath.isEmpty() && file.open(QIODevice::ReadOnly))
+    if (!fPath.isEmpty() && file.open(QIODevice::ReadOnly))
     {
-        fByteArray = file.readAll();
+        QByteArray fByteArray = file.readAll();
 
         file.close();
-        fType = File::getContentType(filePath);
+        fType = File::getContentType(fPath);
 
         if ((fByteArray.size() / (1024 * 1024)) > spaceAvailableMB) {
             QMessageBox::critical(this, "", "⚠ File size error!\n\nThe file has exceeded your space limit! "
                                          "Please select another file to upload.");
             fByteArray.clear();
             fType = "";
+            fPath = "";
         }
 
         return;
     }
 }
 
-void FileUploadDialog::clearData() {
+void FileUploadDialog::clearData()
+{
     fileNameLineEdit->clear();
     filePathLineEdit->clear();
     descriptionTextEdit->clear();
@@ -103,8 +105,7 @@ void FileUploadDialog::clearData() {
     tagLineEdit->clear();
     isPublicCheckBox->setChecked(false);
     fType = "";
-    fByteArray.clear();
-
+    fPath = "";
 }
 
 void FileUploadDialog::fieldsCheck()
@@ -113,7 +114,7 @@ void FileUploadDialog::fieldsCheck()
         descriptionTextEdit->toPlainText().isEmpty() ||
         categoryLineEdit->text().isEmpty() ||
         tagLineEdit->text().isEmpty() ||
-        fByteArray.isEmpty() || fType == "") {
+        fType == "" || fPath == "") {
         switchBtn(fileUploadBtn, false);
     } else {
         switchBtn(fileUploadBtn, true);
@@ -134,7 +135,7 @@ File FileUploadDialog::getUploadData() const
     uploadData["category"] = categoryLineEdit->text();
     uploadData["tag"] = tagLineEdit->text();
     uploadData["is_public"] = int(isPublicCheckBox->isChecked());
-    uploadData["BLOB"] = QString::fromStdString(fByteArray.toStdString());
+    uploadData["BLOB_path"] = fPath;
 
     File to_upload = File(uploadData);
 

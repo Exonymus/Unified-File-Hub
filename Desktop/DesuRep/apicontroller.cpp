@@ -422,7 +422,11 @@ void ApiController::uploadFile(User &session, const File &uploadFile, QProgressB
     filePart.setHeader(QNetworkRequest::ContentDispositionHeader,
                        QVariant("form-data; name=\"input_data\"; filename=\"" + fullFileName + "\""));
 
-    QByteArray fileData = QByteArray::fromBase64(metaData["BLOB"].toString().toUtf8());
+    QFile file(metaData["BLOB_path"].toString());
+    file.open(QIODevice::ReadOnly);
+    QByteArray fileData = file.readAll();
+    file.close();
+
     QBuffer *fileBuffer = new QBuffer();
     fileBuffer->setData(fileData);
     fileBuffer->open(QIODevice::ReadOnly);
@@ -560,7 +564,6 @@ void ApiController::onCopyFileFinished(QNetworkReply *reply)
 // Delete User file in UFH Storage
 void ApiController::deleteFile(User &session, const QString &fileId)
 {
-    qDebug() << fileId;
     QUrl apiUrl(BASE_URL + "files/delete_file/" + fileId);
 
     QNetworkRequest request(apiUrl);
@@ -605,5 +608,107 @@ void ApiController::updateFile(User &session, const QJsonObject &metaData)
 void ApiController::onUpdateFileFinished(QNetworkReply *reply)
 {
     handleApiResponse("Update File", reply);
+    reply->deleteLater();
+}
+
+
+// Google Drive Link/Unlink
+void ApiController::linkGDrive(User &session, const QString apiKey)
+{
+    QUrl apiUrl(BASE_URL + "users/link_google/" + apiKey);
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, QByteArray());
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onLinkGDriveFinished(reply);
+    });
+}
+
+void ApiController::onLinkGDriveFinished(QNetworkReply *reply)
+{
+    handleApiResponse("Link GDrive", reply);
+    reply->deleteLater();
+}
+
+void ApiController::getGDrive(User &session, GoogleDriveAuth &google_auth)
+{
+    QUrl apiUrl(BASE_URL + "users/get_google");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, &google_auth]() {
+        onGetGdriveFinished(reply, google_auth);
+    });
+}
+
+void ApiController::onGetGdriveFinished(QNetworkReply *reply, GoogleDriveAuth &google_auth)
+{
+    QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    if (statusCode.isValid())
+    {
+        if (statusCode.toInt() == 200)
+        {
+            QByteArray responseData = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+
+            if (jsonDoc.isObject())
+            {
+                QJsonObject jsonObject = jsonDoc.object();
+
+                if (jsonObject.contains("result"))
+                {
+                    google_auth.accessToken = jsonObject.value("result").toString();
+                    google_auth.checkDriveAccess();
+                }
+            }
+        }
+        else if (statusCode.toInt() == 404)
+        {
+            google_auth.accessToken = "";
+            emit gDriveChecked();
+        }
+        else
+        {
+            handleNetworkError("Get Google Drive", reply);
+        }
+    }
+    else
+    {
+        handleNetworkError("Get Google Drive", reply);
+    }
+
+    reply->deleteLater();
+}
+
+
+void ApiController::unlinkGDrive(User &session)
+{
+    QUrl apiUrl(BASE_URL + "users/unlink_google/");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->post(request, QByteArray());
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onUnlinkGDriveFinished(reply);
+    });
+}
+
+void ApiController::onUnlinkGDriveFinished(QNetworkReply *reply)
+{
+    handleApiResponse("Unlink GDrive", reply);
     reply->deleteLater();
 }

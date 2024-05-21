@@ -170,3 +170,60 @@ async def recover_user(
         db.close()
 
     return {"result": "success"}
+
+
+@router.post("/link_google/{api_key}")
+async def link_google(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        api_key: str, db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.add_google_connection(user_id=current_user.id, api_key=api_key, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to add Google Drive api-key: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.get("/get_google")
+async def get_google(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        db: Session = Depends(get_db)):
+    try:
+        api_key = crud.get_google_connection(user_id=current_user.id, db=db)
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to get Google Drive api-key: {str(e)}")
+
+    return {"result": api_key}
+
+
+@router.post("/unlink_google")
+async def unlink_google(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.remove_google_connection(user_id=current_user.id, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to remove Google Drive api-key: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}

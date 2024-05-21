@@ -10,10 +10,11 @@
 #include <QMessageBox>
 #include <QRegularExpressionValidator>
 
-#include "globals.h"
 #include "filetreewidget.h"
 #include "fileedit.h"
 #include "fileupload.h"
+#include "globals.h"
+#include "googledriveauth.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -33,39 +34,32 @@ private:
     File findFileById(QUuid id, const QList<File> *fileList);
     bool showDeleteConfirmationDialog(QString fileName);
 
+    void updateGoogleLinkButton();
+
 
 private slots:
     void sessionCheck();
-
     void actionsCheck();
+    void updateStorageUsage();
 
     void on_refresh_files_clicked();
-
     void on_exit_btn_clicked();
-
     void on_so_btn_clicked();
 
     void on_actionCopy_triggered();
-
     void on_actionCut_triggered();
-
     void on_actionPaste_triggered();
-
     void on_actionDelete_triggered();
-
     void on_actionDownload_triggered();
-
     void on_actionUpload_triggered();
-
     void on_actionEdit_triggered();
 
     void on_change_email_btn_clicked();
-
     void on_change_pass_btn_clicked();
-
-    void updateStorageUsage();
-
     void on_change_sq_btn_clicked();
+
+    // Google Drive
+    void on_linkGDrive_btn_clicked();
 
 private:
     QTimer *actionsTimer;
@@ -77,8 +71,11 @@ private:
     File copyBuffer;
     File cutBuffer;
 
-    //Storages
+    // Хранилища
     FileTreeWidget *desuStorage;
+
+    // Сторонняя авторизация
+    GoogleDriveAuth *google_auth;
 
     QJsonObject changedUserMetadata;
 

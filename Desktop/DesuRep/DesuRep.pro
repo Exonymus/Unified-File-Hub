@@ -18,6 +18,7 @@ SOURCES += \
     filetreewidget.cpp \
     fileupload.cpp \
     globals.cpp \
+    googledriveauth.cpp \
     main.cpp \
     mainwindow.cpp \
     user.cpp \
@@ -31,6 +32,7 @@ HEADERS += \
     bcrypt.h \
     database.h \
     enhasher.h \
+    googledriveauth.h \
     file.h \
     fileedit.h \
     filetreewidget.h \

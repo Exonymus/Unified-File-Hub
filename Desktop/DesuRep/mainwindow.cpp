@@ -87,11 +87,39 @@ MainWindow::MainWindow(QWidget *parent)
         QMessageBox::information(this, tr("Edit Complete"), tr("Changes applied succesfully."));
         changedUserMetadata = QJsonObject();
     });
+    connect(webApi, &ApiController::userEditFailed, this, [this]() {
+        QMessageBox::warning(this, tr("Error"), tr("Failed to change user info."));
+        changedUserMetadata = QJsonObject();
+    });
 
     connect(webApi, &ApiController::userEditFailed, this, [this]() {
         QMessageBox::warning(this, tr("Error"), tr("Failed to change user info."));
         changedUserMetadata = QJsonObject();
     });
+
+    // Сигналы Google Auth
+    google_auth = new GoogleDriveAuth(this);
+
+    connect(google_auth, &GoogleDriveAuth::accessTokenReceived, this, [this]() {
+        // driveApi = new GoogleDriveAPI(accessToken, this);
+        webApi->linkGDrive(*windControl->session, google_auth->accessToken);
+    });
+    connect(google_auth, &GoogleDriveAuth::userInfoReceived, this, [this]() {
+        google_auth->isLinked = true;
+        updateGoogleLinkButton();
+        switchBtn(ui->linkGDrive_btn, true);
+    });
+    connect(google_auth, &GoogleDriveAuth::authorizationError, this, [this](const QString& error) {
+        QMessageBox::critical(this, "Google Authorization Error", error);
+        google_auth->isLinked = false;
+        updateGoogleLinkButton();
+    });
+    connect(webApi, &ApiController::gDriveChecked, this, [this]() {
+        switchBtn(ui->linkGDrive_btn, true);
+    });
+
+    updateGoogleLinkButton();
+    switchBtn(ui->linkGDrive_btn, false);
 
     sessionTimer->start(100);
 
@@ -137,6 +165,9 @@ void MainWindow::sessionCheck()
 
         actionsTimer->start(100);
         sessionTimer->stop();
+
+        // Google Drive
+        webApi->getGDrive(*windControl->session, *google_auth);
     }
 }
 
@@ -210,6 +241,9 @@ void MainWindow::actionsCheck()
         switchBtn(ui->download_btn, false);
         switchBtn(ui->upload_btn, false);
     }
+
+    // Check Google Drive
+    updateGoogleLinkButton();
 }
 
 void MainWindow::on_actionCopy_triggered()
@@ -604,9 +638,14 @@ void MainWindow::on_so_btn_clicked()
     // Менеджмент таймеров
     sessionTimer->start();
     actionsTimer->stop();
+
+    // Очистим Google Drive
+    google_auth->clear();
+    updateGoogleLinkButton();
+    switchBtn(ui->linkGDrive_btn, false);
 }
 
-
+// Редактирование профиля
 void MainWindow::on_change_email_btn_clicked()
 {
     if (showChangeEmailDialog())
@@ -629,5 +668,42 @@ void MainWindow::on_change_sq_btn_clicked()
     if (showSecretQuestionRecoveryDialog())
     {
         webApi->editUser(*windControl->session, changedUserMetadata, "secret");
+    }
+}
+
+// Интеграция Google Drive
+void MainWindow::on_linkGDrive_btn_clicked()
+{
+    if (google_auth->isLinked)
+    {
+        // Unlink Google Drive
+        google_auth->accessToken.clear();
+        google_auth->userEmail.clear();
+        google_auth->userAvatarData.clear();
+        google_auth->isLinked = false;
+        webApi->unlinkGDrive(*windControl->session);
+        QMessageBox::information(this, "Google Drive", "Successfully unlinked Google Drive.");
+    }
+    else
+    {
+        // Link Google Drive
+        google_auth->authenticate();
+    }
+}
+
+void MainWindow::updateGoogleLinkButton()
+{
+    if (google_auth->isLinked)
+    {
+        ui->linkGDrive_btn->setText("Unlink " + google_auth->userEmail);
+        QPixmap pixmap;
+        pixmap.loadFromData(google_auth->userAvatarData);
+        QIcon icon(pixmap);
+        ui->linkGDrive_btn->setIcon(icon);
+    }
+    else
+    {
+        ui->linkGDrive_btn->setText("Link Google Drive");
+        ui->linkGDrive_btn->setIcon(QIcon(":icons/gdrive"));
     }
 }
