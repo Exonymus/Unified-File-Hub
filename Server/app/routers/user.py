@@ -13,7 +13,7 @@ import security.token as security
 import cruds.user as crud
 from database import get_db
 from env import JWT_EXPIRE
-from schemas import User, UserMetadata, Token
+from schemas import User, UserMetadata, Token, ConnectAPIData
 from schemas import (EmailUpdateRequest, PasswordUpdateRequest,
                      SQUpdateRequest, RecoverRequest)
 
@@ -172,13 +172,13 @@ async def recover_user(
     return {"result": "success"}
 
 
-@router.post("/link_google/{api_key}")
+@router.post("/link_google")
 async def link_google(
         current_user: Annotated[User, Depends(security.get_current_active_user)],
-        api_key: str, db: Session = Depends(get_db)):
+        connect_data: ConnectAPIData, db: Session = Depends(get_db)):
     try:
         db.begin()
-        crud.add_google_connection(user_id=current_user.id, api_key=api_key, db=db)
+        crud.add_google_connection(user_id=current_user.id, data=connect_data, db=db)
         db.commit()
     except HTTPException as http_err:
         db.rollback()

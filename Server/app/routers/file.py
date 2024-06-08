@@ -162,18 +162,3 @@ async def copy_file(
         db.close()
 
     return {"result": "success"}
-
-# @router.post('/get_public_file_by_id')
-# async def get_public_file_by_id(file_id: UUID, db: Session = Depends(get_db)):
-#     return {"data": crud.get_public_file_by_id(file_id=file_id, db=db)}
-#
-#
-# @router.post('/get_all_public_files')
-# async def get_all_public_files(db: Session = Depends(get_db)):
-#     response = crud.get_all_public_files(db=db)
-#     response_json = {}
-#     counter = 0
-#     for item in response:
-#         response_json[f"{counter}"] = response[counter]
-#         counter += 1
-#     return {"data": response_json}

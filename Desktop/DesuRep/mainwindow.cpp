@@ -11,7 +11,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->download_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
     connect(ui->upload_btn, SIGNAL(clicked()), this, SLOT(on_actionUpload_triggered()));
 
-    desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, this);
+    desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, "ufh", this);
+    gdriveStorage = new FileTreeWidget(ui->gdrive_files, "Google Drive", ui->gdrive_file_info, "gdrive", this);
 
     sessionTimer = new QTimer();
     actionsTimer = new QTimer();
@@ -27,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Сигнал обновления файлов
     connect(webApi, &ApiController::refreshDesuFiles, this, &MainWindow::on_refresh_files_clicked);
     connect(desuStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
+    connect(gdriveStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
 
     // Сигнал истечения сессии
     connect(webApi, &ApiController::sessionExpired, this, [this]() {
@@ -101,18 +103,25 @@ MainWindow::MainWindow(QWidget *parent)
     google_auth = new GoogleDriveAuth(this);
 
     connect(google_auth, &GoogleDriveAuth::accessTokenReceived, this, [this]() {
-        // driveApi = new GoogleDriveAPI(accessToken, this);
-        webApi->linkGDrive(*windControl->session, google_auth->accessToken);
+        webApi->linkGDrive(*windControl->session,
+                           google_auth->accessToken,
+                           google_auth->refreshToken);
+
     });
     connect(google_auth, &GoogleDriveAuth::userInfoReceived, this, [this]() {
         google_auth->isLinked = true;
         updateGoogleLinkButton();
         switchBtn(ui->linkGDrive_btn, true);
+
+        google_api = new GoogleDriveAPI(google_auth->accessToken,
+                                        google_auth->userEmail, this);
+        gdriveStorage->refreshFiles();
     });
     connect(google_auth, &GoogleDriveAuth::authorizationError, this, [this](const QString& error) {
         QMessageBox::critical(this, "Google Authorization Error", error);
         google_auth->isLinked = false;
         updateGoogleLinkButton();
+        switchBtn(ui->linkGDrive_btn, true);
     });
     connect(webApi, &ApiController::gDriveChecked, this, [this]() {
         switchBtn(ui->linkGDrive_btn, true);
@@ -174,6 +183,9 @@ void MainWindow::sessionCheck()
 void MainWindow::updateStorageUsage()
 {
     ui->drep_info->setValue(desuStorage->spaceUsage());
+    if (google_api != nullptr) {
+        google_api->fetchStorageUsage(ui->gdrive_info);
+    }
 }
 
 
@@ -241,6 +253,9 @@ void MainWindow::actionsCheck()
         switchBtn(ui->download_btn, false);
         switchBtn(ui->upload_btn, false);
     }
+
+    switchBtn(ui->download_gdrive_btn, false);
+    switchBtn(ui->download_ftp_btn, false);
 
     // Check Google Drive
     updateGoogleLinkButton();
@@ -555,7 +570,6 @@ bool MainWindow::showSecretQuestionRecoveryDialog()
     return secretQuestionDialog.exec() == QDialog::Accepted;
 }
 
-
 void MainWindow::on_actionDelete_triggered()
 {
     QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
@@ -622,22 +636,40 @@ void MainWindow::on_so_btn_clicked()
 {
     // Очистим рабочее окно
     ui->desurep_files->clear();
+    ui->gdrive_files->clear();
+
     ui->desurep_file_info->clear();
+    ui->gdrive_file_info->clear();
+
     ui->title_label->setText("Welcome, ");
+
     ui->desurep_files->headerItem()->setText(0, "UFH Storage");
+    ui->gdrive_files->headerItem()->setText(0, "Google Drive");
+
+
+    // Очистим окно профиля
+    ui->drep_info->setValue(0);
+    ui->gdrive_info->setValue(0);
+    ui->odrive_info->setValue(0);
+    ui->ftp_info->setValue(0);
+    ui->ftp_storage_selector->clear();
+
 
     // Буфферы файлов
     copyBuffer = File();
     cutBuffer = File();
+
 
     // Переключиимся на предыдущее окно
     windControl->clearSession();
     windControl->WindowSwap("a");
     windControl->updates["a"] = true;
 
+
     // Менеджмент таймеров
     sessionTimer->start();
     actionsTimer->stop();
+
 
     // Очистим Google Drive
     google_auth->clear();
@@ -705,5 +737,27 @@ void MainWindow::updateGoogleLinkButton()
     {
         ui->linkGDrive_btn->setText("Link Google Drive");
         ui->linkGDrive_btn->setIcon(QIcon(":icons/gdrive"));
+        delete google_api;
+        google_api = nullptr;
     }
 }
+
+// FTP
+void MainWindow::on_ftp_connection_add_btn_clicked()
+{
+    bool changed = addServerDialog.exec();
+
+    if (changed) {
+        QJsonObject server_Metadata = addServerDialog.getData();
+    }
+
+}
+
+
+void MainWindow::on_refresh_files_gdrive_btn_clicked()
+{
+    if (google_api) {
+        gdriveStorage->refreshFiles();
+    }
+}
+

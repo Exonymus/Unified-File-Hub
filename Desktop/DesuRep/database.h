@@ -11,6 +11,8 @@
 #include <QSqlError>
 #include <QFileInfo>
 #include <QUuid>
+#include <QStandardPaths>
+#include <QDir>
 
 #include "user.h"
 #include "enhasher.h"

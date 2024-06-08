@@ -153,11 +153,19 @@ void AuthForm::on_session_si_submit_btn_clicked()
 
 void AuthForm::on_su_submit_btn_clicked()
 {
+    static const QRegularExpression emailRegex(R"((\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b))");
     if (ui->su_form_pass_input->text() != ui->su_form_rpass_input->text())
     {
-        QMessageBox::critical(0,"","  ⚠   Sign Up error!\n\n" "Passwords don't match! "
+        QMessageBox::critical(0,"","  ⚠   Sign up failed!\n\n" "Passwords don't match! "
                                    "Please repeat your password correctly.");
         ui->su_form_rpass_input->setText("");
+    }
+    else
+    if (!emailRegex.match(ui->su_form_email_input->text()).hasMatch())
+    {
+        QMessageBox::critical(0,"","  ⚠   Sign up failed!\n\n" "Invalid Email! "
+                                   "Please enter a valid email address.");
+        ui->su_form_email_input->setText("");
     }
     else
     {

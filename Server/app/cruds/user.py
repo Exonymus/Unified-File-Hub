@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from pydantic import EmailStr
 
 from models import User as UserTable, Role, GDConn
-from schemas import UserInDB, UserMetadata, RecoverRequest
+from schemas import UserInDB, UserMetadata, RecoverRequest, ConnectAPIData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -128,30 +128,31 @@ def recover_user(recover_metadata: RecoverRequest, db: Session) -> None:
     setattr(user, "hashed_password", hashed_password)
 
 
-def add_google_connection(user_id: UUID, api_key: str, db: Session) -> None:
+def add_google_connection(user_id: UUID, data: ConnectAPIData, db: Session) -> None:
     """
         Add Google Drive connection using provided metadata.
 
         Args:
             user_id (UUID): ID of the user to be updated.
-            api_key (str): API-key to connect to the Google API.
+            data (ConnectAPIData): API-token to connect to the Google API.
             db (Session): The database session.
     """
     try:
         # Check existence
-        gd_conn = db.query(GDConn).filter(GDConn.api_key == api_key).first()
+        gd_conn = db.query(GDConn).filter(GDConn.user_id == user_id).first()
         if gd_conn:
-            return
+            db.delete(gd_conn)
 
         # Create a new Google Drive connection object with the provided metadata
-        api_token = GDConn(
+        api_connection = GDConn(
             id=uuid4(),
             user_id=user_id,
-            api_key=api_key
+            access_key=data.access_key,
+            refresh_key=data.refresh_key
         )
 
         # Add the new connection to the session
-        db.add(api_token)
+        db.add(api_connection)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Failed to create gdrive connection: {e}")
@@ -177,7 +178,7 @@ def get_google_connection(user_id: UUID, db: Session) -> str:
             detail="Api-key not found."
         )
 
-    return gd_conn.api_key
+    return str.join(",", [gd_conn.access_key, gd_conn.refresh_key])
 
 
 def remove_google_connection(user_id: UUID, db: Session) -> None:

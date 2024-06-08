@@ -28,4 +28,7 @@
     <qresource prefix="/credentials">
         <file alias="google">resources/credentials/google_credentials.json</file>
     </qresource>
+    <qresource prefix="/database">
+        <file alias="local">resources/local.db</file>
+    </qresource>
 </RCC>

@@ -10,10 +10,12 @@
 #include <QMessageBox>
 #include <QRegularExpressionValidator>
 
+#include "addftpserver.h"
 #include "filetreewidget.h"
 #include "fileedit.h"
 #include "fileupload.h"
 #include "globals.h"
+#include "googledriveapi.h"
 #include "googledriveauth.h"
 
 QT_BEGIN_NAMESPACE
@@ -61,18 +63,24 @@ private slots:
     // Google Drive
     void on_linkGDrive_btn_clicked();
 
+    void on_ftp_connection_add_btn_clicked();
+
+    void on_refresh_files_gdrive_btn_clicked();
+
 private:
     QTimer *actionsTimer;
     QTimer *sessionTimer;
     Ui::MainWindow *ui;
     FileEditDialog editDialog;
     FileUploadDialog uploadDialog;
+    AddFtpServerDialog addServerDialog;
 
     File copyBuffer;
     File cutBuffer;
 
     // Хранилища
     FileTreeWidget *desuStorage;
+    FileTreeWidget *gdriveStorage;
 
     // Сторонняя авторизация
     GoogleDriveAuth *google_auth;

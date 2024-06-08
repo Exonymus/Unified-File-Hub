@@ -23,7 +23,7 @@ class File(Base):
     description = Column(String(255))
     category = Column(String(255))
     tag = Column(String(255))
-    is_public = Column(Boolean, nullable=False)
+    is_public = Column(Boolean, nullable=False, index=True)
     owner_id = Column(UUIDType(binary=False), ForeignKey("users.id"), nullable=False)
     upload_date = Column(DateTime(), default=dt.now(tz=timezone(timedelta(hours=3))), nullable=False)
 
