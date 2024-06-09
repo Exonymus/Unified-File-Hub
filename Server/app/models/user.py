@@ -10,7 +10,7 @@ class User(Base):
 
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
     role_id = Column(UUIDType(binary=False), ForeignKey("roles.id"), nullable=False)
-    username = Column(String(255), nullable=False, unique=True)
+    username = Column(String(255), nullable=False, unique=True, index=True)
     email = Column(String(255), nullable=False, unique=True)
     secret_num = Column(Integer, nullable=False)
     secret_answer = Column(String(255), nullable=False)

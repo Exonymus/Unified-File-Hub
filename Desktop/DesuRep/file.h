@@ -6,7 +6,8 @@
 #include <QList>
 #include <QMimeDatabase>
 #include <QMimeType>
-
+#include <QUuid>
+#include <QFileInfo>
 
 class File
 {
@@ -17,6 +18,8 @@ public:
 
 public:
     QUuid getId() const { return QUuid(metaData["id"].toString()); }
+    QString getGoogleId() const { return metaData["id"].toString(); }
+    QString getGoogleParentId() const { return metaData["parent"].toString(); }
     QString getName() const { return metaData["name"].toString(); }
     QString getPath() const { return metaData["path"].toString(); }
     QString getType() const { return metaData["mime_type"].toString(); }
@@ -34,12 +37,13 @@ public:
 
     QJsonObject getMetaData() const { return metaData; }
 
-
     qreal getSizeInMB() const;
     qreal getBlobSizeInMB() const;
 
     static QString getFileExtensionFromMimeType(const QString& mimeTypeName);
     static QString getContentType(const QString& filePath);
+    static QString cropExtension(const QString &fileName);
+    static File findObjectById(const QList<File> &list, const QString &id);
 
 private:
     QJsonObject metaData;

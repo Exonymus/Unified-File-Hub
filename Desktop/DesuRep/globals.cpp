@@ -9,6 +9,8 @@ Database *database = new Database();
 
 ApiController *webApi = new ApiController();
 
+GoogleDriveAPI *google_api = new GoogleDriveAPI();
+
 
 QStringList secret_questions =
 {

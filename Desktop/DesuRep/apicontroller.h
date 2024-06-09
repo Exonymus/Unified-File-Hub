@@ -22,6 +22,7 @@
 
 #include "user.h"
 #include "file.h"
+#include "googledriveauth.h"
 
 
 class ApiController : public QObject
@@ -67,6 +68,11 @@ public:
     // Метод для восстановления пароля пользователя
     void recoverUser(User &session, const QJsonObject &recoveryUserMetadata);
 
+    // Методы Google Drive
+    void linkGDrive(User &session, const QString apiKey, const QString refrKey);
+    void getGDrive(User &session, GoogleDriveAuth &google_auth);
+    void unlinkGDrive(User &session);
+
 private slots:
     void onCopyFileFinished(QNetworkReply *reply);
 
@@ -91,6 +97,10 @@ private slots:
     void onEditUserFinished(QNetworkReply *reply, QString change_mode);
 
     void onRecoverUserFinished(QNetworkReply *reply);
+
+    void onLinkGDriveFinished(QNetworkReply *reply);
+    void onGetGdriveFinished(QNetworkReply *reply, GoogleDriveAuth &google_auth);
+    void onUnlinkGDriveFinished(QNetworkReply *reply);
 
 private:
     void handleApiResponse(const QString &operation, QNetworkReply *reply);
@@ -119,6 +129,8 @@ signals:
 
     void refreshDesuFiles();
 
+    void gDriveChecked();
+
     void uploadSucceed();
     void uploadFailed();
 
@@ -127,8 +139,5 @@ signals:
 
     void filesUpdated();
 };
-
-
-
 
 #endif // APICONTROLLER_H

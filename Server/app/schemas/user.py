@@ -55,3 +55,8 @@ class RecoverRequest(BaseModel):
     password: str
     secret_num: int
     secret_answer: str
+
+
+class ConnectAPIData(BaseModel):
+    access_key: str
+    refresh_key: str

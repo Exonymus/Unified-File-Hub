@@ -1,8 +1,13 @@
 #include "filetreewidget.h"
 
-FileTreeWidget::FileTreeWidget(QTreeWidget *treeWidget, QString storageName, QTextBrowser *textBrowser, QWidget *parent) : QObject{parent}
+FileTreeWidget::FileTreeWidget(QTreeWidget *treeWidget,
+                               QString storageName,
+                               QTextBrowser *textBrowser,
+                               QString handlerSystem,
+                               QWidget *parent) : QObject{parent}
 {
     files = new QList<File>;
+    handler = handlerSystem;
 
     fileInfo = textBrowser;
     name = storageName;
@@ -22,7 +27,11 @@ void FileTreeWidget::updateFiles()
 
     // Создадим основные каталоги
     QTreeWidgetItem *publicFilesItem = new QTreeWidgetItem(tree);
-    publicFilesItem->setText(0, "Public Files");
+    if (handler == "gdrive" || handler == "odrive") {
+        publicFilesItem->setText(0, "Available Files");
+    } else {
+        publicFilesItem->setText(0, "Public Files");
+    }
     publicFilesItem->setIcon(0, QIcon(":icons/home-folder"));
 
     QTreeWidgetItem *myFilesItem = new QTreeWidgetItem(tree);
@@ -32,8 +41,8 @@ void FileTreeWidget::updateFiles()
     // Итерируемся по найденным файлам
     for (const File &file : *files)
     {
-        bool isOwned = file.getOwnerId() == windControl->session->getId();
-        if (isOwned) { totalSpaceUsedMB += file.getSizeInMB(); }
+        bool isOwned = handler == "ufh"? file.getOwnerId() == windControl->session->getId() : !file.isPublic();
+        if (isOwned && handler == "ufh") { totalSpaceUsedMB += file.getSizeInMB(); }
 
         // Файл не лежит в корне
         if (file.getPath() == ".") {
@@ -128,7 +137,7 @@ void FileTreeWidget::handleFileSelectionChanged()
         tree->headerItem()->setText(0, name + filePath);
 
         // Установим информацию элемента
-        setFileInfo(selectedItem);
+        handler == "ufh"? setFileInfo(selectedItem) : setFileInfoCompact(selectedItem);
     }
 }
 
@@ -204,18 +213,72 @@ void FileTreeWidget::setFileInfo(QTreeWidgetItem *item)
 }
 
 
-void FileTreeWidget::refreshFiles()
+void FileTreeWidget::setFileInfoCompact(QTreeWidgetItem *item)
 {
+    fileInfo->clear();
+
+    bool isFolder = item->data(0, Qt::UserRole).isNull();
+    QJsonObject metaData = item->data(0, Qt::UserRole).toJsonObject();
+
+    QString header;
+    QString body = "<h4><ul>";
+
+    if (isFolder)
+    {
+        header = QString("<h3 style='text-align: center;'><b>Properties of '%1' folder</b></h3><br>").arg(item->text(0));
+        body += QString("<li><i>Files Stored:</i> %1</li>").arg(item->childCount());
+    }
+    else
+    {
+        QString fileName = item->text(0);
+        QString fileExtension = File::getFileExtensionFromMimeType(metaData["mime_type"].toString());
+
+        header = QString("<h3 style='text-align: center;'><b>Properties of '%1.%2'</b></h3>").arg(fileName, fileExtension);
+
+        QHash<QString, QString> displayKeys = {
+            {"mime_type", "Type"},
+            {"path", "Path"},
+            {"upload_date", "Uploaded on"},
+            {"owner", "Owner"},
+            {"size", "Size"}
+        };
+
+        for (auto it = metaData.constBegin(); it != metaData.constEnd(); ++it) {
+            QString key = it.key();
+            if (key == "id" || key == "name" || key == "is_public"
+                    || key == "parent" || key == "gdrive_mime_type") continue;
+
+            QString displayKey = displayKeys.value(key, key);
+            QString value = it.value().toString();
+
+            if (key == "size") {
+                double size = it.value().toDouble();
+                size = size < 0.1 ? 0 : size;
+                QString strSize = QString::number(size, 'f', 2);
+                value = (strSize == "0.00" ? "&lt; 0.1" : strSize) + " MB";
+            }
+
+            body += QString("<li><i>%1:</i> %2</li>").arg(displayKey, value);
+        }
+    }
+
+    body += "</ul></h4>";
+
+    fileInfo->append(header);
+    fileInfo->append(body);
+}
+
+void FileTreeWidget::refreshFiles() {
     // Сохранение состояния открытых папок
     QSet<QString> expandedFolders;
     QTreeWidgetItemIterator it(tree);
-        while (*it) {
-            if ((*it)->isExpanded()) {
-                QString path = getPath(*it);
-                expandedFolders.insert(path);
-            }
-            ++it;
+    while (*it) {
+        if ((*it)->isExpanded()) {
+            QString path = getPath(*it);
+            expandedFolders.insert(path);
         }
+        ++it;
+    }
 
     tree->clearSelection();
     tree->headerItem()->setText(0, name);
@@ -223,9 +286,13 @@ void FileTreeWidget::refreshFiles()
     tree->clear();
     fileInfo->clear();
 
-    connect(webApi, &ApiController::filesUpdated, this, [&, this, expandedFolders]() {
+    auto updateFilesLambda = [&, this, expandedFolders]() {
         // Обновить список файлов
         updateFiles();
+
+        if (handler != "ufh") {
+            files = &google_api->GDFiles;
+        }
 
         // Восстановление состояния открытых папок
         for (const QString &path : expandedFolders) {
@@ -240,7 +307,13 @@ void FileTreeWidget::refreshFiles()
         }
 
         emit spaceUsageUpdate();
-    });
+    };
 
-    webApi->getUserFiles(*windControl->session, *files);
+    if (handler == "ufh") {
+        connect(webApi, &ApiController::filesUpdated, this, updateFilesLambda);
+        webApi->getUserFiles(*windControl->session, *files);
+    } else if (handler == "gdrive") {
+        connect(google_api, &GoogleDriveAPI::listFilesCompleted, this, updateFilesLambda);
+        google_api->getUserFiles();
+    }
 }

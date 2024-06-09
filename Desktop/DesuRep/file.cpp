@@ -17,13 +17,11 @@ qreal File::getSizeInMB() const
     return metaData["size"].toDouble();
 }
 
-
 QString File::getFileExtensionFromMimeType(const QString& mimeTypeName)
 {
     QMimeDatabase mimeDatabase;
     QMimeType mimeType = mimeDatabase.mimeTypeForName(mimeTypeName);
 
-    // Get the preferred file extension for the MIME type
     QString fileExtension = mimeType.preferredSuffix();
 
     return fileExtension;
@@ -36,4 +34,20 @@ QString File::getContentType(const QString& filePath)
     QString contentType = mimeType.name();
 
     return contentType;
+}
+
+QString File::cropExtension(const QString &fileName) {
+    QFileInfo fileInfo(fileName);
+    return fileInfo.completeBaseName();
+}
+
+File File::findObjectById(const QList<File> &list, const QString &id) {
+    auto it = std::find_if(list.begin(), list.end(), [&id](const File &file) {
+        return file.getGoogleId() == id;
+    });
+    if (it != list.end()) {
+        return *it;
+    } else {
+        return File();
+    }
 }

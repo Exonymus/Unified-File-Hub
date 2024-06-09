@@ -10,6 +10,7 @@ class GDConn(Base):
 
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid4)
     user_id = Column(UUIDType(binary=False), ForeignKey("users.id"), nullable=False)
-    api_key = Column(String(255), nullable=False)
+    access_key = Column(String(255), nullable=False)
+    refresh_key = Column(String(255), nullable=False)
 
     user = relationship("User", back_populates="connections_G")

@@ -9,9 +9,11 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     connect(ui->download_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
+    connect(ui->download_gdrive_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
     connect(ui->upload_btn, SIGNAL(clicked()), this, SLOT(on_actionUpload_triggered()));
 
-    desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, this);
+    desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, "ufh", this);
+    gdriveStorage = new FileTreeWidget(ui->gdrive_files, "Google Drive", ui->gdrive_file_info, "gdrive", this);
 
     sessionTimer = new QTimer();
     actionsTimer = new QTimer();
@@ -27,6 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Сигнал обновления файлов
     connect(webApi, &ApiController::refreshDesuFiles, this, &MainWindow::on_refresh_files_clicked);
     connect(desuStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
+    connect(gdriveStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
 
     // Сигнал истечения сессии
     connect(webApi, &ApiController::sessionExpired, this, [this]() {
@@ -53,17 +56,24 @@ MainWindow::MainWindow(QWidget *parent)
         on_actionUpload_triggered();
     });
 
+
     // Сигналы загрузки файла
-    connect(webApi, &ApiController::downloadSucceed, this, [this] {
+    auto downloadSuccedHandler = [this] {
         fileOperationInProgress = false;
         hideFileStatus();
         QMessageBox::information(this, tr("Download Complete"), tr("File downloaded successfully."));
-    });
-    connect(webApi, &ApiController::downloadFailed, this, [this](const QString& message) {
+    };
+    connect(webApi, &ApiController::downloadSucceed, this, downloadSuccedHandler); // UFH Storage
+    connect(google_api, &GoogleDriveAPI::downloadSucceed, this, downloadSuccedHandler); // Google Drive
+
+    auto downloadFailedHandler = [this](const QString& message) {
         fileOperationInProgress = false;
         hideFileStatus();
         QMessageBox::critical(this, tr("Download Error"), message);
-    });
+    };
+    connect(webApi, &ApiController::downloadFailed, this, downloadFailedHandler); // UFH Storage
+    connect(google_api, &GoogleDriveAPI::downloadFailed, this, downloadFailedHandler); // Google Drive
+
 
     // Сигналы изменения пользователя
     connect(webApi, &ApiController::userEditSucceed, this, [this](const QString& message) {
@@ -101,18 +111,24 @@ MainWindow::MainWindow(QWidget *parent)
     google_auth = new GoogleDriveAuth(this);
 
     connect(google_auth, &GoogleDriveAuth::accessTokenReceived, this, [this]() {
-        // driveApi = new GoogleDriveAPI(accessToken, this);
-        webApi->linkGDrive(*windControl->session, google_auth->accessToken);
+        webApi->linkGDrive(*windControl->session,
+                           google_auth->accessToken,
+                           google_auth->refreshToken);
+
     });
     connect(google_auth, &GoogleDriveAuth::userInfoReceived, this, [this]() {
         google_auth->isLinked = true;
         updateGoogleLinkButton();
         switchBtn(ui->linkGDrive_btn, true);
+
+        google_api->setData(google_auth->accessToken, google_auth->userEmail);
+        gdriveStorage->refreshFiles();
     });
     connect(google_auth, &GoogleDriveAuth::authorizationError, this, [this](const QString& error) {
         QMessageBox::critical(this, "Google Authorization Error", error);
         google_auth->isLinked = false;
         updateGoogleLinkButton();
+        switchBtn(ui->linkGDrive_btn, true);
     });
     connect(webApi, &ApiController::gDriveChecked, this, [this]() {
         switchBtn(ui->linkGDrive_btn, true);
@@ -174,6 +190,9 @@ void MainWindow::sessionCheck()
 void MainWindow::updateStorageUsage()
 {
     ui->drep_info->setValue(desuStorage->spaceUsage());
+    if (google_api->isLinked) {
+        google_api->fetchStorageUsage(ui->gdrive_info);
+    }
 }
 
 
@@ -189,61 +208,85 @@ QString getPath(QTreeWidgetItem *item)
 
 void MainWindow::actionsCheck()
 {
-    QTreeWidgetItem *selectedItem = ui->desurep_files->currentItem();
-
-    if (selectedItem && ui->storages_tabWidget->currentIndex() == 1) {
-        // Текущие свойства
-        QString filePath = getPath(selectedItem);
-        bool editAccess = filePath.split("/", Qt::SkipEmptyParts)[0] != "Public Files";
-        bool isFolder = selectedItem->data(0, Qt::UserRole).isNull();
-
-        // Нередактирующие действия
-        ui->actionCopy->setEnabled(!isFolder);
-        ui->actionPaste->setEnabled((!copyBuffer.isEmptyFile() || !cutBuffer.isEmptyFile()) && editAccess);
-
-        ui->actionDownload->setEnabled(!isFolder);
-        ui->actionUpload->setEnabled(true);
-
-        switchBtn(ui->download_btn, !isFolder);
-        switchBtn(ui->upload_btn, true);
-
-        // Редактирующие действия
-        ui->actionEdit->setEnabled(!selectedItem->data(0, Qt::UserRole).isNull() && editAccess);
-        ui->actionCut->setEnabled(!selectedItem->data(0, Qt::UserRole).isNull() && editAccess);
-        ui->actionDelete->setEnabled(!selectedItem->data(0, Qt::UserRole).isNull() && editAccess);
-    } else if (ui->storages_tabWidget->currentIndex() != 1) {
-        switchBtn(ui->download_btn, false);
-        switchBtn(ui->upload_btn, false);
-
-        ui->actionCopy->setEnabled(false);
-        ui->actionPaste->setEnabled(false);
-        ui->actionCut->setEnabled(false);
-        ui->actionDownload->setEnabled(false);
-        ui->actionEdit->setEnabled(false);
-        ui->actionDelete->setEnabled(false);
-        ui->actionUpload->setEnabled(false);
-    } else {
-        switchBtn(ui->download_btn, false);
-        switchBtn(ui->upload_btn, true);
-
-        ui->actionCopy->setEnabled(false);
-        ui->actionPaste->setEnabled(false);
-        ui->actionCut->setEnabled(false);
-        ui->actionDownload->setEnabled(false);
-        ui->actionEdit->setEnabled(false);
-        ui->actionDelete->setEnabled(false);
-        ui->actionUpload->setEnabled(true);
-    }
-
     if (fileOperationInProgress) {
         ui->actionUpload->setEnabled(false);
         ui->actionDownload->setEnabled(false);
+
         switchBtn(ui->download_btn, false);
+        switchBtn(ui->download_gdrive_btn, false);
+        switchBtn(ui->download_ftp_btn, false);
+
         switchBtn(ui->upload_btn, false);
+        switchBtn(ui->upload_gdrive_btn, false);
+        switchBtn(ui->upload_ftp_btn, false);
+        return;
     }
 
     // Check Google Drive
     updateGoogleLinkButton();
+
+    int currentIndex = ui->storages_tabWidget->currentIndex();
+    QTreeWidgetItem *selectedItem = nullptr;
+
+    if (currentIndex == 1) {
+        selectedItem = ui->desurep_files->currentItem();
+    } else if (currentIndex == 2) {
+        selectedItem = ui->gdrive_files->currentItem();
+    }
+
+    bool isDesurepTab = (currentIndex == 1);
+    bool isGDriveTab = (currentIndex == 2);
+
+    if (selectedItem) {
+        QString filePath = getPath(selectedItem);
+        bool isFolder = selectedItem->data(0, Qt::UserRole).isNull();
+        bool editAccess = (isDesurepTab)
+                          ? filePath.split("/", Qt::SkipEmptyParts)[0] != "Public Files"
+                          : filePath.split("/", Qt::SkipEmptyParts)[0] != "Available Files";
+
+        // Non-editing actions
+        ui->actionCopy->setEnabled(!isFolder);
+        ui->actionPaste->setEnabled((!copyBuffer.isEmptyFile() || !cutBuffer.isEmptyFile()) && editAccess);
+        ui->actionDownload->setEnabled(!isFolder);
+        ui->actionUpload->setEnabled(true);
+
+        if (isDesurepTab) {
+            switchBtn(ui->download_btn, !isFolder);
+            switchBtn(ui->upload_btn, true);
+        } else if (isGDriveTab && google_auth->isLinked) {
+            switchBtn(ui->download_gdrive_btn, !isFolder);
+            switchBtn(ui->upload_gdrive_btn, true);
+        } else if (isGDriveTab && !google_auth->isLinked) {
+            switchBtn(ui->download_gdrive_btn, false);
+            switchBtn(ui->upload_gdrive_btn, false);
+        }
+
+        // Editing actions
+        ui->actionEdit->setEnabled(editAccess && !isFolder);
+        ui->actionCut->setEnabled(editAccess && !isFolder);
+        ui->actionDelete->setEnabled(editAccess && !isFolder);
+    } else {
+        ui->actionCopy->setEnabled(false);
+        ui->actionPaste->setEnabled(false);
+        ui->actionCut->setEnabled(false);
+        ui->actionDownload->setEnabled(false);
+        ui->actionEdit->setEnabled(false);
+        ui->actionDelete->setEnabled(false);
+        ui->actionUpload->setEnabled(!isDesurepTab && !isGDriveTab);
+
+        if (isDesurepTab) {
+            switchBtn(ui->download_btn, false);
+            switchBtn(ui->upload_btn, false);
+        } else if (isGDriveTab) {
+            switchBtn(ui->download_gdrive_btn, false);
+            switchBtn(ui->upload_gdrive_btn, false);
+        } else {
+            switchBtn(ui->download_btn, false);
+            switchBtn(ui->upload_btn, false);
+            switchBtn(ui->download_gdrive_btn, false);
+            switchBtn(ui->upload_gdrive_btn, false);
+        }
+    }
 }
 
 void MainWindow::on_actionCopy_triggered()
@@ -555,7 +598,6 @@ bool MainWindow::showSecretQuestionRecoveryDialog()
     return secretQuestionDialog.exec() == QDialog::Accepted;
 }
 
-
 void MainWindow::on_actionDelete_triggered()
 {
     QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
@@ -569,23 +611,40 @@ void MainWindow::on_actionDelete_triggered()
 void MainWindow::on_actionDownload_triggered()
 {
     // Обработка события загрузки файла
-    QTreeWidgetItem *selectedItem = ui->desurep_files->currentItem();
+    QTreeWidget *activeStorage = nullptr;
+    if (ui->storages_tabWidget->currentIndex() == 1) {
+        activeStorage = ui->desurep_files;
+    } else if (ui->storages_tabWidget->currentIndex() == 2) {
+        activeStorage = ui->gdrive_files;
+    }
 
-    if (selectedItem) {
-        // Получение ссылки на скачивание и имени файла из пользовательских данных
-        QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
-        QString fileName = selectedItem->text(0) + "." +
-                File::getFileExtensionFromMimeType(selectedItem->data(0, Qt::UserRole).toJsonObject()["mime_type"].toString());
-        QString savePath = QFileDialog::getSaveFileName(this, tr("Save File"), QDir::homePath() + "/Downloads/" + fileName);
+    if (!activeStorage) return;
 
-        // Выполнение скачивания файла
-        showFileStatus("Downloading file from Storage:");
-        fileOperationInProgress = true;
+    QTreeWidgetItem *selectedItem = activeStorage->currentItem();
+
+    if (!selectedItem) return;
+
+    // Получение ссылки на скачивание и имени файла из пользовательских данных
+    QString selectedFileId = activeStorage->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
+    QString fileName = selectedItem->text(0) + "." +
+            File::getFileExtensionFromMimeType(selectedItem->data(0, Qt::UserRole).toJsonObject()["mime_type"].toString());
+    QString savePath = QFileDialog::getSaveFileName(this, tr("Save File"), QDir::homePath() + "/Downloads/" + fileName);
+    if (savePath.isEmpty()) return;
+
+    // Выполнение скачивания файла
+    showFileStatus("Downloading file from Storage:");
+    fileOperationInProgress = true;
+
+    if (ui->storages_tabWidget->currentIndex() == 1) {
         webApi->downloadFile(*windControl->session,
                              selectedFileId,
                              savePath,
                              ui->file_status_pb);
+    } else if (ui->storages_tabWidget->currentIndex() == 2) {
+        qreal fileSize = activeStorage->currentItem()->data(0, Qt::UserRole).toJsonObject()["size"].toDouble();
+        google_api->downloadFile(selectedFileId, savePath, fileSize, ui->file_status_pb);
     }
+
 }
 
 void MainWindow::on_actionUpload_triggered()
@@ -622,22 +681,40 @@ void MainWindow::on_so_btn_clicked()
 {
     // Очистим рабочее окно
     ui->desurep_files->clear();
+    ui->gdrive_files->clear();
+
     ui->desurep_file_info->clear();
+    ui->gdrive_file_info->clear();
+
     ui->title_label->setText("Welcome, ");
+
     ui->desurep_files->headerItem()->setText(0, "UFH Storage");
+    ui->gdrive_files->headerItem()->setText(0, "Google Drive");
+
+
+    // Очистим окно профиля
+    ui->drep_info->setValue(0);
+    ui->gdrive_info->setValue(0);
+    ui->odrive_info->setValue(0);
+    ui->ftp_info->setValue(0);
+    ui->ftp_storage_selector->clear();
+
 
     // Буфферы файлов
     copyBuffer = File();
     cutBuffer = File();
+
 
     // Переключиимся на предыдущее окно
     windControl->clearSession();
     windControl->WindowSwap("a");
     windControl->updates["a"] = true;
 
+
     // Менеджмент таймеров
     sessionTimer->start();
     actionsTimer->stop();
+
 
     // Очистим Google Drive
     google_auth->clear();
@@ -705,5 +782,25 @@ void MainWindow::updateGoogleLinkButton()
     {
         ui->linkGDrive_btn->setText("Link Google Drive");
         ui->linkGDrive_btn->setIcon(QIcon(":icons/gdrive"));
+        google_api->clearData();
+    }
+}
+
+// FTP
+void MainWindow::on_ftp_connection_add_btn_clicked()
+{
+    bool changed = addServerDialog.exec();
+
+    if (changed) {
+        QJsonObject server_Metadata = addServerDialog.getData();
+    }
+
+}
+
+
+void MainWindow::on_refresh_files_gdrive_btn_clicked()
+{
+    if (google_api->isLinked) {
+        gdriveStorage->refreshFiles();
     }
 }

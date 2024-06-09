@@ -13,7 +13,11 @@ class FileTreeWidget : public QObject
     Q_OBJECT
 
 public:
-    explicit FileTreeWidget(QTreeWidget *treeWidget, QString storageName, QTextBrowser *textBrowser, QWidget *parent = nullptr);
+    explicit FileTreeWidget(QTreeWidget *treeWidget,
+                            QString storageName,
+                            QTextBrowser *textBrowser,
+                            QString handler,
+                            QWidget *parent = nullptr);
 
     void refreshFiles();
 
@@ -25,11 +29,13 @@ private:
     void updateFiles();
     QString getPath(QTreeWidgetItem *item);
     void setFileInfo(QTreeWidgetItem *item);
+    void setFileInfoCompact(QTreeWidgetItem *item);
 
     QTextBrowser *fileInfo;
     QList<File> *files;
     QString name;
     QTreeWidget *tree;
+    QString handler;
 
     qreal totalSpaceUsedMB;
     qreal spaceLimitMB;

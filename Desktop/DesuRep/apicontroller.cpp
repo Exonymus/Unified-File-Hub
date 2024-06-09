@@ -613,16 +613,19 @@ void ApiController::onUpdateFileFinished(QNetworkReply *reply)
 
 
 // Google Drive Link/Unlink
-void ApiController::linkGDrive(User &session, const QString apiKey)
+void ApiController::linkGDrive(User &session, const QString apiKey, const QString refrKey)
 {
-    QUrl apiUrl(BASE_URL + "users/link_google/" + apiKey);
+    QUrl apiUrl(BASE_URL + "users/link_google");
 
     QNetworkRequest request(apiUrl);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader(QByteArray("Authorization"),
                          QString("bearer %1").arg(session.getToken()).toUtf8());
 
-    QNetworkReply *reply = networkManager->post(request, QByteArray());
+    QJsonDocument jsonDoc(QJsonObject{{"access_key", apiKey}, {"refresh_key", refrKey}});
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = networkManager->post(request, jsonData);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         onLinkGDriveFinished(reply);
@@ -667,7 +670,9 @@ void ApiController::onGetGdriveFinished(QNetworkReply *reply, GoogleDriveAuth &g
 
                 if (jsonObject.contains("result"))
                 {
-                    google_auth.accessToken = jsonObject.value("result").toString();
+                    auto tokens = jsonObject.value("result").toString().split(",");
+                    google_auth.accessToken = tokens[0];
+                    google_auth.refreshToken = tokens[1];
                     google_auth.checkDriveAccess();
                 }
             }
@@ -675,6 +680,7 @@ void ApiController::onGetGdriveFinished(QNetworkReply *reply, GoogleDriveAuth &g
         else if (statusCode.toInt() == 404)
         {
             google_auth.accessToken = "";
+            google_auth.refreshToken = "";
             emit gDriveChecked();
         }
         else
