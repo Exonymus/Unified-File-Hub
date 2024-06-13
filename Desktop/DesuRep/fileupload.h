@@ -29,6 +29,8 @@ public:
 
     void clearData();
 
+    void setStorageType(QString sType);
+
 private slots:
     void cancelUpload();
 
@@ -50,7 +52,9 @@ private:
     QPushButton *fileUploadBtn;
     QString fPath;
     QString fType;
+    QString storageType = "ufh";
     qreal spaceAvailableMB;
+    QFormLayout *fLayout;
 };
 
 

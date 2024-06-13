@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
 
+#include "ftpcontroller.h"
 #include "googledriveapi.h"
 #include "windowcontroller.h"
 #include "database.h"
@@ -18,6 +19,7 @@ extern Database *database;
 
 extern ApiController *webApi;
 extern GoogleDriveAPI *google_api;
+extern FTPController *ftp_api;
 
 extern QStringList secret_questions;
 

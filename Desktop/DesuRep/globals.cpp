@@ -11,6 +11,8 @@ ApiController *webApi = new ApiController();
 
 GoogleDriveAPI *google_api = new GoogleDriveAPI();
 
+FTPController *ftp_api = new FTPController();
+
 
 QStringList secret_questions =
 {

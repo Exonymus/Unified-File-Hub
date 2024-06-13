@@ -124,7 +124,7 @@ QTabWidget::pane {
 }</string>
         </property>
         <property name="currentIndex">
-         <number>2</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="profile_tab">
          <attribute name="title">
@@ -605,16 +605,11 @@ font-weight: bold;</string>
                  </size>
                 </property>
                 <property name="currentIndex">
-                 <number>0</number>
+                 <number>-1</number>
                 </property>
                 <property name="placeholderText">
-                 <string>&lt;select ftp&gt;</string>
+                 <string>&lt;Select FTP conn.&gt;</string>
                 </property>
-                <item>
-                 <property name="text">
-                  <string>127.0.0.1:14147</string>
-                 </property>
-                </item>
                </widget>
               </item>
              </layout>
@@ -1129,149 +1124,24 @@ font-weight: bold;</string>
           <string>FTP</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_ftp">
-          <item row="3" column="0">
-           <spacer name="content_left_spacer_ftp">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>10</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="5" column="4">
-           <widget class="QPushButton" name="upload_ftp_btn">
+          <item row="4" column="5">
+           <widget class="QPushButton" name="ftp_connection_add_btn">
             <property name="minimumSize">
              <size>
               <width>100</width>
-              <height>50</height>
+              <height>32</height>
              </size>
             </property>
             <property name="maximumSize">
              <size>
               <width>100</width>
-              <height>50</height>
+              <height>32</height>
              </size>
-            </property>
-            <property name="styleSheet">
-             <string notr="true"/>
             </property>
             <property name="text">
-             <string>Upload</string>
-            </property>
-            <property name="icon">
-             <iconset resource="resources.qrc">
-              <normaloff>:/icons/upload</normaloff>:/icons/upload</iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>20</width>
-              <height>20</height>
-             </size>
-            </property>
-            <property name="flat">
-             <bool>false</bool>
+             <string>Add New</string>
             </property>
            </widget>
-          </item>
-          <item row="3" column="7">
-           <spacer name="content_right_spacer_ftp">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>10</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="3" column="1" rowspan="3">
-           <widget class="QTreeWidget" name="ftp_files">
-            <property name="styleSheet">
-             <string notr="true"/>
-            </property>
-            <column>
-             <property name="text">
-              <string>127.0.0.1:14147</string>
-             </property>
-             <property name="icon">
-              <iconset resource="resources.qrc">
-               <normaloff>:/icons/home</normaloff>:/icons/home</iconset>
-             </property>
-            </column>
-            <item>
-             <property name="text">
-              <string>Server Files</string>
-             </property>
-             <property name="icon">
-              <iconset resource="resources.qrc">
-               <normaloff>:/icons/home-folder</normaloff>:/icons/home-folder</iconset>
-             </property>
-             <item>
-              <property name="text">
-               <string>testimage</string>
-              </property>
-              <property name="icon">
-               <iconset resource="resources.qrc">
-                <normaloff>:/icons/file</normaloff>:/icons/file</iconset>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Server_Folder1</string>
-              </property>
-              <property name="icon">
-               <iconset resource="resources.qrc">
-                <normaloff>:/icons/folder</normaloff>:/icons/folder</iconset>
-              </property>
-              <item>
-               <property name="text">
-                <string>testimage</string>
-               </property>
-               <property name="icon">
-                <iconset resource="resources.qrc">
-                 <normaloff>:/icons/file</normaloff>:/icons/file</iconset>
-               </property>
-              </item>
-             </item>
-             <item>
-              <property name="text">
-               <string>testtxt</string>
-              </property>
-              <property name="icon">
-               <iconset resource="resources.qrc">
-                <normaloff>:/icons/file</normaloff>:/icons/file</iconset>
-              </property>
-             </item>
-            </item>
-           </widget>
-          </item>
-          <item row="2" column="2">
-           <spacer name="content_mid_spacer_ftp">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>15</height>
-             </size>
-            </property>
-           </spacer>
           </item>
           <item row="5" column="5" colspan="2">
            <widget class="QPushButton" name="refresh_files_ftp_btn">
@@ -1299,24 +1169,8 @@ font-weight: bold;</string>
             </property>
            </widget>
           </item>
-          <item row="1" column="1" colspan="6">
-           <widget class="QLabel" name="ftp_description_label">
-            <property name="font">
-             <font>
-              <family>Arial</family>
-              <italic>true</italic>
-             </font>
-            </property>
-            <property name="text">
-             <string>Work with files stored on FTP servers</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="2">
-           <spacer name="content_middle_spacer_ftp">
+          <item row="3" column="0">
+           <spacer name="content_left_spacer_ftp">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -1325,7 +1179,7 @@ font-weight: bold;</string>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
-              <width>25</width>
+              <width>10</width>
               <height>20</height>
              </size>
             </property>
@@ -1363,8 +1217,55 @@ font-weight: bold;</string>
             </property>
            </widget>
           </item>
+          <item row="5" column="4">
+           <widget class="QPushButton" name="upload_ftp_btn">
+            <property name="minimumSize">
+             <size>
+              <width>100</width>
+              <height>50</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>100</width>
+              <height>50</height>
+             </size>
+            </property>
+            <property name="styleSheet">
+             <string notr="true"/>
+            </property>
+            <property name="text">
+             <string>Upload</string>
+            </property>
+            <property name="icon">
+             <iconset resource="resources.qrc">
+              <normaloff>:/icons/upload</normaloff>:/icons/upload</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>20</width>
+              <height>20</height>
+             </size>
+            </property>
+            <property name="flat">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
           <item row="3" column="3" colspan="4">
            <widget class="QTextBrowser" name="ftp_file_info">
+            <property name="minimumSize">
+             <size>
+              <width>328</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>328</width>
+              <height>16777215</height>
+             </size>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -1372,6 +1273,22 @@ font-weight: bold;</string>
              <string>&lt;Select directory or file first to view properties&gt;</string>
             </property>
            </widget>
+          </item>
+          <item row="3" column="2">
+           <spacer name="content_middle_spacer_ftp">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>25</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
           <item row="0" column="2">
            <spacer name="content_top_spacer_ftp">
@@ -1389,39 +1306,88 @@ font-weight: bold;</string>
             </property>
            </spacer>
           </item>
-          <item row="4" column="5">
-           <widget class="QPushButton" name="ftp_connection_add_btn">
-            <property name="minimumSize">
-             <size>
-              <width>100</width>
-              <height>32</height>
-             </size>
+          <item row="3" column="1" rowspan="3">
+           <widget class="QTreeWidget" name="ftp_files">
+            <property name="styleSheet">
+             <string notr="true"/>
             </property>
-            <property name="maximumSize">
-             <size>
-              <width>100</width>
-              <height>32</height>
-             </size>
+            <column>
+             <property name="text">
+              <string>FTP Server</string>
+             </property>
+             <property name="icon">
+              <iconset resource="resources.qrc">
+               <normaloff>:/icons/home</normaloff>:/icons/home</iconset>
+             </property>
+            </column>
+            <item>
+             <property name="text">
+              <string>Server Files</string>
+             </property>
+             <property name="icon">
+              <iconset resource="resources.qrc">
+               <normaloff>:/icons/home-folder</normaloff>:/icons/home-folder</iconset>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="1" colspan="6">
+           <widget class="QLabel" name="ftp_description_label">
+            <property name="font">
+             <font>
+              <family>Arial</family>
+              <italic>true</italic>
+             </font>
             </property>
             <property name="text">
-             <string>Add New</string>
+             <string>Work with files stored on FTP servers</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
             </property>
            </widget>
+          </item>
+          <item row="3" column="7">
+           <spacer name="content_right_spacer_ftp">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>10</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
           <item row="4" column="3" colspan="2">
            <widget class="QComboBox" name="ftp_connection_cb">
             <property name="currentIndex">
-             <number>0</number>
+             <number>-1</number>
             </property>
             <property name="placeholderText">
              <string>&lt;Select FTP connection&gt;</string>
             </property>
-            <item>
-             <property name="text">
-              <string>127.0.0.1:14147</string>
-             </property>
-            </item>
            </widget>
+          </item>
+          <item row="2" column="2">
+           <spacer name="content_mid_spacer_ftp">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>15</height>
+             </size>
+            </property>
+           </spacer>
           </item>
          </layout>
         </widget>

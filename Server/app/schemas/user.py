@@ -60,3 +60,10 @@ class RecoverRequest(BaseModel):
 class ConnectAPIData(BaseModel):
     access_key: str
     refresh_key: str
+
+
+class ConnectFTPData(BaseModel):
+    name: str
+    user: str
+    password: str
+    ip: str

@@ -59,6 +59,8 @@ FileUploadDialog::FileUploadDialog(QWidget *parent) : QDialog(parent)
     connect(cancelBtn, &QPushButton::clicked, this, &FileUploadDialog::cancelUpload);
     formLayout->addRow(cancelBtn);
 
+    fLayout = formLayout;
+
     // Set up the dialog window
     setWindowTitle(working_mode == "edit"? "Edit File": "Upload File");
     setMinimumWidth(400);
@@ -106,18 +108,62 @@ void FileUploadDialog::clearData()
     isPublicCheckBox->setChecked(false);
     fType = "";
     fPath = "";
+    storageType = "";
+    this->clearFocus();
 }
+
+void FileUploadDialog::setStorageType(QString sType) {
+    storageType = sType;
+
+    auto setVisibility = [&](QWidget *widget, bool visible) {
+        // Iterate through the form layout to find the corresponding label
+        for (int i = 0; i < fLayout->rowCount(); ++i) {
+            QLayoutItem *labelItem = fLayout->itemAt(i, QFormLayout::LabelRole);
+            QLayoutItem *fieldItem = fLayout->itemAt(i, QFormLayout::FieldRole);
+            if (fieldItem && fieldItem->widget() == widget) {
+                if (labelItem && labelItem->widget()) {
+                    labelItem->widget()->setVisible(visible);
+                }
+                fieldItem->widget()->setVisible(visible);
+                break;
+            }
+        }
+    };
+
+    bool isGdrive = (storageType == "gdrive");
+
+    setVisibility(descriptionTextEdit, !isGdrive);
+    setVisibility(categoryLineEdit, !isGdrive);
+    setVisibility(tagLineEdit, !isGdrive);
+    setVisibility(isPublicCheckBox, !isGdrive);
+
+    if (isGdrive) {
+        this->setFixedSize(400, 200);
+    } else {
+        this->setFixedSize(400, 500);
+    }
+}
+
 
 void FileUploadDialog::fieldsCheck()
 {
-    if (fileNameLineEdit->text().isEmpty() ||
-        descriptionTextEdit->toPlainText().isEmpty() ||
-        categoryLineEdit->text().isEmpty() ||
-        tagLineEdit->text().isEmpty() ||
-        fType == "" || fPath == "") {
-        switchBtn(fileUploadBtn, false);
-    } else {
-        switchBtn(fileUploadBtn, true);
+    if (this->storageType == "ufh") {
+        if (fileNameLineEdit->text().isEmpty() ||
+            descriptionTextEdit->toPlainText().isEmpty() ||
+            categoryLineEdit->text().isEmpty() ||
+            tagLineEdit->text().isEmpty() ||
+            fType == "" || fPath == "") {
+            switchBtn(fileUploadBtn, false);
+        } else {
+            switchBtn(fileUploadBtn, true);
+        }
+    } else if (this->storageType == "gdrive") {
+        if (fileNameLineEdit->text().isEmpty() ||
+            fType == "" || fPath == "") {
+            switchBtn(fileUploadBtn, false);
+        } else {
+            switchBtn(fileUploadBtn, true);
+        }
     }
 
 }
@@ -131,10 +177,12 @@ File FileUploadDialog::getUploadData() const
     uploadData["mime_type"] = fType;
     uploadData["owner_id"] = windControl->session->getUsername();
     uploadData["path"] = filePathLineEdit->text().isEmpty()? "." : filePathLineEdit->text();
-    uploadData["description"] = descriptionTextEdit->toPlainText();
-    uploadData["category"] = categoryLineEdit->text();
-    uploadData["tag"] = tagLineEdit->text();
-    uploadData["is_public"] = int(isPublicCheckBox->isChecked());
+    if (this->storageType == "ufh") {
+        uploadData["description"] = descriptionTextEdit->toPlainText();
+        uploadData["category"] = categoryLineEdit->text();
+        uploadData["tag"] = tagLineEdit->text();
+        uploadData["is_public"] = int(isPublicCheckBox->isChecked());
+    }
     uploadData["BLOB_path"] = fPath;
 
     File to_upload = File(uploadData);
@@ -144,6 +192,7 @@ File FileUploadDialog::getUploadData() const
 
 void FileUploadDialog::cancelUpload()
 {
+    clearData();
     reject();
 }
 

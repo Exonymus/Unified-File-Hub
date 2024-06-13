@@ -67,6 +67,10 @@ private slots:
 
     void on_refresh_files_gdrive_btn_clicked();
 
+    void on_ftp_connection_cb_currentIndexChanged(int index);
+
+    void on_refresh_files_ftp_btn_clicked();
+
 private:
     QTimer *actionsTimer;
     QTimer *sessionTimer;
@@ -81,12 +85,14 @@ private:
     // Хранилища
     FileTreeWidget *desuStorage;
     FileTreeWidget *gdriveStorage;
+    FileTreeWidget *ftpStorage;
 
     // Сторонняя авторизация
     GoogleDriveAuth *google_auth;
 
     QJsonObject changedUserMetadata;
 
+    QString fileUploader;
     bool fileOperationInProgress;
 
     bool showChangeEmailDialog();

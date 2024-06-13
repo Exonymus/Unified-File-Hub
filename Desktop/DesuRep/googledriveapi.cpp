@@ -60,6 +60,9 @@ void GoogleDriveAPI::onGetUserFilesFinished(QNetworkReply *reply)
         QJsonArray files = json.object().value("files").toArray();
 
         QStringList fileIds;
+        GDFiles.clear();
+        pendingRequests.clear();
+        pendingQueue.clear();
 
         QMap<QString, QString> mimeTypeToExtensions = {
             {"application/vnd.google-apps.document", "docx"},
@@ -338,90 +341,93 @@ void GoogleDriveAPI::downloadFile(const QString &fileId, const QString &destinat
     });
 }
 
+void GoogleDriveAPI::uploadFile(const File &uploadFile, QProgressBar *progressBar) {
+    // Get parentId
+    QString parentFolderName = uploadFile.getPath();
+    QList<QString> possibleParents = parentPaths.keys(parentFolderName);
+    QString parentId = possibleParents.size() != 0 ? possibleParents.constFirst() : "";
 
-
-
-void GoogleDriveAPI::createFolder(const QString &folderName, const std::function<void(const QString &)> &callback) {
-    QUrl url("https://www.googleapis.com/drive/v3/files");
+    QUrl url("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart");
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", "Bearer " + accessToken.toUtf8());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    // Set multipart/related content type with boundary
+    QString boundary = "boundary_string";
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "multipart/related; boundary=" + boundary);
+
+    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::RelatedType);
+    multiPart->setBoundary(boundary.toUtf8());
+
+    QJsonObject metaData = uploadFile.getMetaData();
+
+    // Metadata part
+    QHttpPart metadataPart;
+    metadataPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/json"));
 
     QJsonObject metadata;
-    metadata["name"] = folderName;
-    metadata["mimeType"] = "application/vnd.google-apps.folder";
+    metadata["name"] = uploadFile.getName();
+    if (!parentId.isEmpty()) {
+        QJsonArray parents;
+        parents.append(parentId);
+        metadata["parents"] = parents;
+    }
+    metadataPart.setBody(QJsonDocument(metadata).toJson());
 
-    QNetworkReply *reply = networkManager->post(request, QJsonDocument(metadata).toJson());
+    // File content part
+    QHttpPart filePart;
+    filePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(uploadFile.getType()));
+    filePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"file\"; filename=\"" + uploadFile.getName() + "\""));
+
+    QFile *file = new QFile(metaData["BLOB_path"].toString());
+    if (!file->open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open file for reading:" << metaData["BLOB_path"].toString();
+        delete file;
+        delete multiPart;
+        return;
+    }
+
+    filePart.setBodyDevice(file);
+    file->setParent(multiPart);
+
+    multiPart->append(metadataPart);
+    multiPart->append(filePart);
+
+    QNetworkReply *reply = networkManager->post(request, multiPart);
+    multiPart->setParent(reply);
+
+    connect(reply, &QNetworkReply::uploadProgress, [=](qint64 bytesSent, qint64 bytesTotal)
+    {
+        progressBar->setMaximum(static_cast<int>(bytesTotal));
+        progressBar->setValue(static_cast<int>(bytesSent));
+    });
 
     QObject::connect(reply, &QNetworkReply::finished, this, [=]() {
         if (reply->error() == QNetworkReply::NoError) {
-            QByteArray response = reply->readAll();
-            QJsonDocument jsonResponse = QJsonDocument::fromJson(response);
-            QJsonObject jsonObject = jsonResponse.object();
-            QString folderId = jsonObject["id"].toString();
-            callback(folderId);
+            emit uploadSucceed();
         } else {
-            qWarning() << "Error creating folder:" << reply->errorString();
-            callback(QString());
+            handleNetworkError("GDrive File Upload", reply);
+            emit uploadFailed();
         }
         reply->deleteLater();
     });
 }
 
-void GoogleDriveAPI::uploadFile(const QString &filePath, const QString &parentFolderName) {
-    auto upload = [=](const QString &parentId) {
-        QUrl url("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart");
-        QNetworkRequest request(url);
-        request.setRawHeader("Authorization", "Bearer " + accessToken.toUtf8());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "multipart/related");
+void GoogleDriveAPI::deleteFile(const QString &fileId) {
+    QUrl url(QString("https://www.googleapis.com/drive/v3/files/%1").arg(fileId));
+    QNetworkRequest request(url);
+    request.setRawHeader("Authorization", "Bearer " + accessToken.toUtf8());
 
-        QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::RelatedType);
+    QNetworkReply *reply = networkManager->deleteResource(request);
 
-        // Metadata part
-        QHttpPart metadataPart;
-        metadataPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/json"));
-
-        QJsonObject metadata;
-        metadata["name"] = QFileInfo(filePath).fileName();
-        if (!parentId.isEmpty()) {
-            QJsonArray parents;
-            parents.append(parentId);
-            metadata["parents"] = parents;
+    QObject::connect(reply, &QNetworkReply::finished, this, [=]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            emit filesNeedUpdate();
         }
-        metadataPart.setBody(QJsonDocument(metadata).toJson());
-
-        // File content part
-        QHttpPart filePart;
-        filePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/octet-stream"));
-        filePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant("form-data; name=\"file\""));
-
-        QFile *file = new QFile(filePath);
-        if (!file->open(QIODevice::ReadOnly)) {
-            qWarning() << "Failed to open file for reading:" << filePath;
-            delete file;
-            delete multiPart;
-            return;
+        else {
+            handleNetworkError("GDrive Delete File", reply);
         }
-        filePart.setBodyDevice(file);
-        file->setParent(multiPart);
-
-        multiPart->append(metadataPart);
-        multiPart->append(filePart);
-
-        QNetworkReply *reply = networkManager->post(request, multiPart);
-        multiPart->setParent(reply);
-
-        QObject::connect(reply, &QNetworkReply::finished, this, [=]() {
-            if (reply->error() == QNetworkReply::NoError) {
-                qDebug() << "File uploaded successfully";
-            } else {
-                qWarning() << "Error in network reply:" << reply->errorString();
-            }
-            reply->deleteLater();
-        });
-    };
-
-    createFolder(parentFolderName, upload);
+        reply->deleteLater();
+    });
 }
 
 

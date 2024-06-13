@@ -34,16 +34,20 @@ void FileTreeWidget::updateFiles()
     }
     publicFilesItem->setIcon(0, QIcon(":icons/home-folder"));
 
+    if  (handler == "ftp") { tree->clear(); }
+
     QTreeWidgetItem *myFilesItem = new QTreeWidgetItem(tree);
     myFilesItem->setText(0, "My Files");
+    if  (handler == "ftp") { myFilesItem->setText(0, "Server Files"); }
     myFilesItem->setIcon(0, QIcon(":icons/home-folder"));
 
     // Итерируемся по найденным файлам
     for (const File &file : *files)
     {
-        bool isOwned = handler == "ufh"? file.getOwnerId() == windControl->session->getId() : !file.isPublic();
-        if (isOwned && handler == "ufh") { totalSpaceUsedMB += file.getSizeInMB(); }
-
+        bool isOwned = handler == "ufh"?
+                    file.getOwnerId() == windControl->session->getId() :
+                    handler == "ftp"? true : !file.isPublic();
+        if (isOwned && (handler == "ufh" || handler == "ftp")) { totalSpaceUsedMB += file.getSizeInMB(); }
         // Файл не лежит в корне
         if (file.getPath() == ".") {
             QTreeWidgetItem *parentItem = nullptr;
@@ -287,12 +291,14 @@ void FileTreeWidget::refreshFiles() {
     fileInfo->clear();
 
     auto updateFilesLambda = [&, this, expandedFolders]() {
+        if (handler == "gdrive") {
+            files = &google_api->GDFiles;
+        } else if (handler == "ftp") {
+            files = &ftp_api->ftpFiles;
+        }
+
         // Обновить список файлов
         updateFiles();
-
-        if (handler != "ufh") {
-            files = &google_api->GDFiles;
-        }
 
         // Восстановление состояния открытых папок
         for (const QString &path : expandedFolders) {
@@ -315,5 +321,10 @@ void FileTreeWidget::refreshFiles() {
     } else if (handler == "gdrive") {
         connect(google_api, &GoogleDriveAPI::listFilesCompleted, this, updateFilesLambda);
         google_api->getUserFiles();
+    } else if (handler == "ftp") {
+        if (ftp_api->isConnectionSelected()) {
+            connect(ftp_api, &FTPController::filesListedSuccess, this, updateFilesLambda);
+            ftp_api->getUserFiles();
+        }
     }
 }

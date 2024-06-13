@@ -1,5 +1,4 @@
 #include "addftpserver.h"
-#include "QtCore/qjsonobject.h"
 
 AddFtpServerDialog::AddFtpServerDialog(QWidget *parent) : QDialog(parent)
 {
@@ -47,6 +46,15 @@ AddFtpServerDialog::AddFtpServerDialog(QWidget *parent) : QDialog(parent)
     setMinimumHeight(220);
     setMaximumHeight(220);
 
+    connect(ftp_api, &FTPController::connectionTested, this, [this](bool success) {
+        if (success)
+        {
+            accept();
+        } else {
+            QMessageBox::warning(this, tr("Error"), tr("Failed to access the server.\n"
+                                                       "Please check up provided info."));
+        }
+    });
 }
 
 void AddFtpServerDialog::clearData()
@@ -58,21 +66,23 @@ void AddFtpServerDialog::clearData()
 }
 
 
-QJsonObject AddFtpServerDialog::getData() const
+FTPConnection AddFtpServerDialog::getData() const
 {
-    return {{"name", serverNameLineEdit->text()},
-            {"user", serverFTPUserLineEdit->text()},
-            {"password", serverFTPPasswordLineEdit->text()},
-            {"ip", serverFTPIPLineEdit->text()}};
+    return {QUuid::createUuid().toString(),
+            serverNameLineEdit->text(),
+            serverFTPIPLineEdit->text(),
+            serverFTPUserLineEdit->text(),
+            serverFTPPasswordLineEdit->text()};
 }
 
 
 void AddFtpServerDialog::cancel()
 {
+    clearData();
     reject();
 }
 
 void AddFtpServerDialog::addServer()
 {
-    accept();
+    ftp_api->testConnection(FTPConnection(getData()));
 }

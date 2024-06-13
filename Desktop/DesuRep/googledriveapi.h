@@ -23,20 +23,26 @@ public:
     void fetchStorageUsage(QProgressBar *progressBar);
     void downloadFile(const QString &fileId, const QString &destinationPath, const qreal fileSize, QProgressBar *progressBar);
     void createFolder(const QString &folderName, const std::function<void(const QString &)> &callback);
-    void uploadFile(const QString &filePath, const QString &parentFolderName);
+    void uploadFile(const File &uploadFile, QProgressBar *progressBar);
+    void deleteFile(const QString &fileId);
     void editFileMetadata(const QString &fileId, const QString &newName, const QString &newParentId);
 
 
 public:
-    QList<File>  GDFiles;
+    QList<File> GDFiles;
     bool isLinked;
     void setData(QString accessToken, QString driveOwner );
     void clearData();
 
 signals:
     void listFilesCompleted();
+
+    void uploadSucceed();
+    void uploadFailed();
     void downloadSucceed();
     void downloadFailed(const QString message);
+
+    void filesNeedUpdate();
 
 private slots:
     void onGetUserFilesFinished(QNetworkReply *reply);

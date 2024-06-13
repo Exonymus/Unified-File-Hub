@@ -1,13 +1,15 @@
 from datetime import datetime, timezone, timedelta
-from typing import Union
+from typing import List, Union
 from fastapi import HTTPException, status
 from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from passlib.context import CryptContext
 from pydantic import EmailStr
 
-from models import User as UserTable, Role, GDConn
-from schemas import UserInDB, UserMetadata, RecoverRequest, ConnectAPIData
+from models import User as UserTable, Role, GDConn, FTPConn
+from schemas import UserInDB, UserMetadata, RecoverRequest
+from schemas import ConnectAPIData, ConnectFTPData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -199,6 +201,77 @@ def remove_google_connection(user_id: UUID, db: Session) -> None:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Failed to remove gdrive connection: {e}")
+
+
+def add_ftp_connection(user_id: UUID, data: ConnectFTPData, db: Session) -> None:
+    """
+        Add FTP connection using provided metadata.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            data (ConnectFTPData): API-token to connect to the Google API.
+            db (Session): The database session.
+    """
+    try:
+        # Create a new Google Drive connection object with the provided metadata
+        ftp_connection = FTPConn(
+            id=uuid4(),
+            user_id=user_id,
+            name=data.name,
+            ftp_user=data.user,
+            ftp_pass=data.password,
+            ftp_ip=data.ip
+        )
+
+        # Add the new connection to the session
+        db.add(ftp_connection)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create ftp connection: {e}")
+
+
+def get_ftp_connections(user_id: UUID, db: Session) -> List[FTPConn]:
+    """
+        Get FTP connections.
+
+        Args:
+            user_id (UUID): ID of the user, who owns api-key.
+            db (Session): The database session.
+
+        Returns:
+            str: Api key if found.
+    """
+    # Find Google Drive connection by User id
+    ftp_conns = db.query(FTPConn).filter(FTPConn.user_id == user_id).all()
+
+    if not ftp_conns:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="FTP connections not found."
+        )
+
+    return ftp_conns
+
+
+def remove_ftp_connection(user_id: UUID, conn_id: UUID, db: Session) -> None:
+    """
+        Remove user's FTP connection.
+
+        Args:
+            user_id (UUID): ID of the user to be updated.
+            conn_id (UUID): ID of the connection to be removed.
+            db (Session): The database session.
+    """
+    try:
+        connection = db.query(GDConn).filter(and_(FTPConn.id == conn_id, FTPConn.user_id == user_id)).first()
+
+        if not connection:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail="Connection not found.")
+        db.delete(connection)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to remove ftp connection: {e}")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

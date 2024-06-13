@@ -696,7 +696,6 @@ void ApiController::onGetGdriveFinished(QNetworkReply *reply, GoogleDriveAuth &g
     reply->deleteLater();
 }
 
-
 void ApiController::unlinkGDrive(User &session)
 {
     QUrl apiUrl(BASE_URL + "users/unlink_google/");
@@ -717,4 +716,96 @@ void ApiController::onUnlinkGDriveFinished(QNetworkReply *reply)
 {
     handleApiResponse("Unlink GDrive", reply);
     reply->deleteLater();
+}
+
+// FTP
+void ApiController::getFtpConns(User &session, FTPController &ftp_api)
+{
+    QUrl apiUrl(BASE_URL + "users/get_ftp");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QNetworkReply *reply = networkManager->get(request);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, &ftp_api]() {
+        onGetFtpConnsFinished(reply, ftp_api);
+    });
+}
+
+void ApiController::onGetFtpConnsFinished(QNetworkReply *reply, FTPController &ftp_api)
+{
+    QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+    if (statusCode.isValid())
+    {
+        if (statusCode.toInt() == 200)
+        {
+            QByteArray responseData = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+
+            if (jsonDoc.isObject())
+            {
+                QJsonObject jsonObject = jsonDoc.object();
+
+                if (jsonObject.contains("data"))
+                {
+                    QJsonObject dataObject = jsonObject.value("data").toObject();
+                    for (auto it = dataObject.begin(); it != dataObject.end(); ++it)
+                    {
+                        if (it.value().isObject())
+                        {
+                            QJsonObject fileObject = it.value().toObject();
+
+                            if (fileObject.contains("id") && !fileObject.value("id").toString().isEmpty())
+                            {
+                                ftp_api.addConnection(FTPConnection({fileObject["id"].toString(),
+                                                                    fileObject["name"].toString(),
+                                                                    fileObject["ftp_ip"].toString(),
+                                                                    fileObject["ftp_user"].toString(),
+                                                                    fileObject["ftp_pass"].toString()}));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (statusCode.toInt() != 404)
+        {
+            handleNetworkError("Get FTP", reply);
+        }
+    }
+    else
+    {
+        handleNetworkError("Get FTP", reply);
+    }
+    emit ftpChecked();
+
+    reply->deleteLater();
+}
+
+void ApiController::addFtpConn(User &session, FTPController &ftp_api, const FTPConnection newConn)
+{
+    QUrl apiUrl(BASE_URL + "users/add_ftp");
+
+    QNetworkRequest request(apiUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader(QByteArray("Authorization"),
+                         QString("bearer %1").arg(session.getToken()).toUtf8());
+
+    QJsonDocument jsonDoc(QJsonObject{{"name", newConn.name},
+                                      {"user", newConn.username},
+                                      {"password", newConn.password},
+                                      {"ip", newConn.host}});
+    QByteArray jsonData = jsonDoc.toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = networkManager->post(request, jsonData);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, &session, &ftp_api]() {
+        handleApiResponse("Add FTP", reply);
+        ftp_api.clearConnections();
+        getFtpConns(session, ftp_api);
+        reply->deleteLater();
+    });
 }

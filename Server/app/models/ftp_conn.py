@@ -17,3 +17,11 @@ class FTPConn(Base):
 
     user = relationship("User", back_populates="connections_F")
 
+    def to_json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "ftp_user": self.ftp_user,
+            "ftp_pass": self.ftp_pass,
+            "ftp_ip": self.ftp_ip,
+        }

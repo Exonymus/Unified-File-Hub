@@ -18,6 +18,7 @@ SOURCES += \
     fileedit.cpp \
     filetreewidget.cpp \
     fileupload.cpp \
+    ftpcontroller.cpp \
     globals.cpp \
     googledriveauth.cpp \
     googledriveapi.cpp \
@@ -35,6 +36,7 @@ HEADERS += \
     bcrypt.h \
     database.h \
     enhasher.h \
+    ftpcontroller.h \
     googledriveauth.h \
     googledriveapi.h \
     file.h \
@@ -65,6 +67,7 @@ DISTFILES += \
     resources/local.db
 
 macx: LIBS += -L$$PWD/libraries/ -lbcrypt
+LIBS += -lcurl
 
 INCLUDEPATH += $$PWD/libraries
 DEPENDPATH += $$PWD/libraries

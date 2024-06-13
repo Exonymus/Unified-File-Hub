@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import UUID
 
 import sqlalchemy
 from fastapi import APIRouter
@@ -13,7 +14,8 @@ import security.token as security
 import cruds.user as crud
 from database import get_db
 from env import JWT_EXPIRE
-from schemas import User, UserMetadata, Token, ConnectAPIData
+from schemas import User, UserMetadata, Token
+from schemas import ConnectAPIData, ConnectFTPData
 from schemas import (EmailUpdateRequest, PasswordUpdateRequest,
                      SQUpdateRequest, RecoverRequest)
 
@@ -223,6 +225,62 @@ async def unlink_google(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             detail=f"Failed to remove Google Drive api-key: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.post("/add_ftp")
+async def add_ftp(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        connect_data: ConnectFTPData, db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.add_ftp_connection(user_id=current_user.id, data=connect_data, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to add FTP connection: {str(e)}")
+    finally:
+        db.close()
+
+    return {"result": "success"}
+
+
+@router.get("/get_ftp")
+async def get_ftp(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        db: Session = Depends(get_db)):
+    try:
+        ftp_conns = crud.get_ftp_connections(user_id=current_user.id, db=db)
+        return {"data": {index: conn.to_json() for index, conn in enumerate(ftp_conns)}}
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to get FTP connections: {str(e)}")
+
+
+@router.post("/remove_ftp/{conn_id}")
+async def remove_ftp(
+        current_user: Annotated[User, Depends(security.get_current_active_user)],
+        conn_id: UUID, db: Session = Depends(get_db)):
+    try:
+        db.begin()
+        crud.remove_ftp_connection(user_id=current_user.id, conn_id=conn_id, db=db)
+        db.commit()
+    except HTTPException as http_err:
+        db.rollback()
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to remove FTP connection: {str(e)}")
     finally:
         db.close()
 

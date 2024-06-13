@@ -10,6 +10,9 @@
 #include <QLabel>
 #include "QCheckBox"
 #include <QVBoxLayout>
+#include "QJsonObject"
+
+#include "globals.h"
 
 class AddFtpServerDialog : public QDialog
 {
@@ -17,7 +20,7 @@ class AddFtpServerDialog : public QDialog
 
 public:
     AddFtpServerDialog(QWidget *parent = nullptr);
-    QJsonObject getData() const;
+    FTPConnection getData() const;
     void clearData();
 
 private slots:

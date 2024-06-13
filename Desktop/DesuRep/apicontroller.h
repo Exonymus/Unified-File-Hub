@@ -23,6 +23,7 @@
 #include "user.h"
 #include "file.h"
 #include "googledriveauth.h"
+#include "ftpcontroller.h"
 
 
 class ApiController : public QObject
@@ -73,6 +74,10 @@ public:
     void getGDrive(User &session, GoogleDriveAuth &google_auth);
     void unlinkGDrive(User &session);
 
+    // Методы FTP
+    void getFtpConns(User &session, FTPController &ftp_api);
+    void addFtpConn(User &session, FTPController &ftp_api, const FTPConnection newConn);
+
 private slots:
     void onCopyFileFinished(QNetworkReply *reply);
 
@@ -102,6 +107,8 @@ private slots:
     void onGetGdriveFinished(QNetworkReply *reply, GoogleDriveAuth &google_auth);
     void onUnlinkGDriveFinished(QNetworkReply *reply);
 
+    void onGetFtpConnsFinished(QNetworkReply *reply, FTPController &ftp_api);
+
 private:
     void handleApiResponse(const QString &operation, QNetworkReply *reply);
     void handleNetworkError(const QString &operation, QNetworkReply *reply);
@@ -130,6 +137,7 @@ signals:
     void refreshDesuFiles();
 
     void gDriveChecked();
+    void ftpChecked();
 
     void uploadSucceed();
     void uploadFailed();

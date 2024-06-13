@@ -14,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, "ufh", this);
     gdriveStorage = new FileTreeWidget(ui->gdrive_files, "Google Drive", ui->gdrive_file_info, "gdrive", this);
+    ftpStorage = new FileTreeWidget(ui->ftp_files, "FTP Server", ui->ftp_file_info, "ftp", this);
 
     sessionTimer = new QTimer();
     actionsTimer = new QTimer();
@@ -28,8 +29,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Сигнал обновления файлов
     connect(webApi, &ApiController::refreshDesuFiles, this, &MainWindow::on_refresh_files_clicked);
+    connect(google_api, &GoogleDriveAPI::filesNeedUpdate, this, &MainWindow::on_refresh_files_gdrive_btn_clicked);
+    connect(ftp_api, &FTPController::filesNeedUpdate, this, &MainWindow::on_refresh_files_ftp_btn_clicked);
+
     connect(desuStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
     connect(gdriveStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
+    connect(ftpStorage, &FileTreeWidget::spaceUsageUpdate, this, &MainWindow::updateStorageUsage);
 
     // Сигнал истечения сессии
     connect(webApi, &ApiController::sessionExpired, this, [this]() {
@@ -38,33 +43,43 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // Сигналы выгрузки файла
-    connect(webApi, &ApiController::uploadSucceed, this, [this]() {
+    auto uploadSucceedHandler = [this] {
         QMessageBox::information(this, tr("Upload Complete"), tr("File uploaded successfully."));
         uploadDialog.clearData();
 
         fileOperationInProgress = false;
         hideFileStatus();
 
-        desuStorage->refreshFiles();
-    });
-    connect(webApi, &ApiController::uploadFailed, this, [this]() {
+        if (fileUploader == "ufh") {
+            desuStorage->refreshFiles();
+        } else if (fileUploader == "gdrive") {
+            gdriveStorage->refreshFiles();
+        }
+
+        fileUploader.clear();
+    };
+    connect(webApi, &ApiController::uploadSucceed, this, uploadSucceedHandler); // UFH Storage
+    connect(google_api, &GoogleDriveAPI::uploadSucceed, this, uploadSucceedHandler); // Google Drive
+
+    auto uploadFailedHandler = [this] {
         QMessageBox::warning(this, tr("Error"), tr("Failed to upload the file."));
 
         fileOperationInProgress = false;
         hideFileStatus();
 
         on_actionUpload_triggered();
-    });
-
+    };
+    connect(webApi, &ApiController::uploadFailed, this, uploadFailedHandler); // UFH Storage
+    connect(google_api, &GoogleDriveAPI::uploadFailed, this, uploadFailedHandler); // Google Drive
 
     // Сигналы загрузки файла
-    auto downloadSuccedHandler = [this] {
+    auto downloadSucceedHandler = [this] {
         fileOperationInProgress = false;
         hideFileStatus();
         QMessageBox::information(this, tr("Download Complete"), tr("File downloaded successfully."));
     };
-    connect(webApi, &ApiController::downloadSucceed, this, downloadSuccedHandler); // UFH Storage
-    connect(google_api, &GoogleDriveAPI::downloadSucceed, this, downloadSuccedHandler); // Google Drive
+    connect(webApi, &ApiController::downloadSucceed, this, downloadSucceedHandler); // UFH Storage
+    connect(google_api, &GoogleDriveAPI::downloadSucceed, this, downloadSucceedHandler); // Google Drive
 
     auto downloadFailedHandler = [this](const QString& message) {
         fileOperationInProgress = false;
@@ -137,6 +152,27 @@ MainWindow::MainWindow(QWidget *parent)
     updateGoogleLinkButton();
     switchBtn(ui->linkGDrive_btn, false);
 
+    // Сигналы FTP
+    connect(webApi, &ApiController::ftpChecked, this, [this]() {
+        if (ftp_api->getConnections().size() > 0) {
+            addServerDialog.clearData();
+
+            int currentIndexServer = ui->ftp_connection_cb->currentIndex();
+            int currentIndexServerUsage = ui->ftp_storage_selector->currentIndex();
+
+            ui->ftp_connection_cb->clear();
+            ui->ftp_storage_selector->clear();
+
+            foreach (FTPConnection connection, ftp_api->getConnections()) {
+                ui->ftp_connection_cb->addItem(connection.name, connection.id);
+                ui->ftp_storage_selector->addItem(connection.name, connection.id);
+            }
+
+            ui->ftp_connection_cb->setCurrentIndex(currentIndexServer);
+            ui->ftp_storage_selector->setCurrentIndex(currentIndexServerUsage);
+        }
+    });
+
     sessionTimer->start(100);
 
     copyBuffer = File();
@@ -184,6 +220,9 @@ void MainWindow::sessionCheck()
 
         // Google Drive
         webApi->getGDrive(*windControl->session, *google_auth);
+
+        // FTP
+        webApi->getFtpConns(*windControl->session, *ftp_api);
     }
 }
 
@@ -232,10 +271,13 @@ void MainWindow::actionsCheck()
         selectedItem = ui->desurep_files->currentItem();
     } else if (currentIndex == 2) {
         selectedItem = ui->gdrive_files->currentItem();
+    } else if (currentIndex == 4) {
+        selectedItem = ui->ftp_files->currentItem();
     }
 
     bool isDesurepTab = (currentIndex == 1);
     bool isGDriveTab = (currentIndex == 2);
+    bool isFTPTab = (currentIndex == 4);
 
     if (selectedItem) {
         QString filePath = getPath(selectedItem);
@@ -259,6 +301,12 @@ void MainWindow::actionsCheck()
         } else if (isGDriveTab && !google_auth->isLinked) {
             switchBtn(ui->download_gdrive_btn, false);
             switchBtn(ui->upload_gdrive_btn, false);
+        } else if (isFTPTab && ftp_api->isConnectionSelected()) {
+            switchBtn(ui->download_ftp_btn, !isFolder);
+            switchBtn(ui->upload_ftp_btn, true);
+        } else if (isFTPTab && !ftp_api->isConnectionSelected()) {
+            switchBtn(ui->download_ftp_btn, false);
+            switchBtn(ui->upload_ftp_btn, false);
         }
 
         // Editing actions
@@ -272,7 +320,7 @@ void MainWindow::actionsCheck()
         ui->actionDownload->setEnabled(false);
         ui->actionEdit->setEnabled(false);
         ui->actionDelete->setEnabled(false);
-        ui->actionUpload->setEnabled(!isDesurepTab && !isGDriveTab);
+        ui->actionUpload->setEnabled(!isDesurepTab && !isGDriveTab && !isFTPTab);
 
         if (isDesurepTab) {
             switchBtn(ui->download_btn, false);
@@ -280,6 +328,9 @@ void MainWindow::actionsCheck()
         } else if (isGDriveTab) {
             switchBtn(ui->download_gdrive_btn, false);
             switchBtn(ui->upload_gdrive_btn, false);
+        } else if (isFTPTab) {
+            switchBtn(ui->download_ftp_btn, false);
+            switchBtn(ui->upload_ftp_btn, false);
         } else {
             switchBtn(ui->download_btn, false);
             switchBtn(ui->upload_btn, false);
@@ -600,11 +651,22 @@ bool MainWindow::showSecretQuestionRecoveryDialog()
 
 void MainWindow::on_actionDelete_triggered()
 {
-    QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
+    int currentIndex = ui->storages_tabWidget->currentIndex();
 
-    // Обработка события удаления файла
-    if (showDeleteConfirmationDialog(ui->desurep_files->currentItem()->text(0))) {
-        webApi->deleteFile(*windControl->session, selectedFileId);
+    if (currentIndex == 1) {
+        QString selectedFileName = ui->desurep_files->currentItem()->text(0);
+        QString selectedFileId = ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
+
+        if (showDeleteConfirmationDialog(selectedFileName)) {
+            webApi->deleteFile(*windControl->session, selectedFileId);
+        }
+    } else if (currentIndex == 2) {
+        QString selectedFileName = ui->gdrive_files->currentItem()->text(0);
+        QString selectedFileId = ui->gdrive_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
+
+        if (showDeleteConfirmationDialog(selectedFileName)) {
+            google_api->deleteFile(selectedFileId);
+        }
     }
 }
 
@@ -649,26 +711,67 @@ void MainWindow::on_actionDownload_triggered()
 
 void MainWindow::on_actionUpload_triggered()
 {
+    int currentIndex = ui->storages_tabWidget->currentIndex();
+
     // Обработка события выгрузки файла
-    uploadDialog.setRestrictions(desuStorage->spaceAvailableMB());
-    if (uploadDialog.exec() == QDialog::Accepted)
-    {
-        showFileStatus("Uploading file to Storage:");
-        fileOperationInProgress = true;
-        webApi->uploadFile(*windControl->session,
-                           uploadDialog.getUploadData(),
-                           ui->file_status_pb);
+    if (currentIndex == 1) {
+        uploadDialog.setRestrictions(desuStorage->spaceAvailableMB());
+        uploadDialog.setStorageType("ufh");
+        if (uploadDialog.exec() == QDialog::Accepted)
+        {
+            showFileStatus("Uploading file to UFH Storage:");
+            fileOperationInProgress = true;
+            fileUploader = "ufh";
+            webApi->uploadFile(*windControl->session,
+                               uploadDialog.getUploadData(),
+                               ui->file_status_pb);
+        }
+        else
+        {
+            fileUploader.clear();
+            uploadDialog.clearData();
+        }
+    } else if (currentIndex == 2) {
+        qreal usage = 15 * 1024 * (100 - ui->gdrive_info->value()) / 100;
+        uploadDialog.setRestrictions(usage);
+        uploadDialog.setStorageType("gdrive");
+        if (uploadDialog.exec() == QDialog::Accepted)
+        {
+            showFileStatus("Uploading file to Google Drive:");
+            fileOperationInProgress = true;
+            fileUploader = "gdrive";
+            google_api->uploadFile(uploadDialog.getUploadData(),
+                                   ui->file_status_pb);
+        }
+        else
+        {
+            fileUploader.clear();
+            uploadDialog.clearData();
+        }
     }
-    else
-    {
-        uploadDialog.clearData();
-    }
+
 }
 
 
 void MainWindow::on_refresh_files_clicked()
 {
     desuStorage->refreshFiles();
+}
+
+void MainWindow::on_refresh_files_gdrive_btn_clicked()
+{
+    if (google_api->isLinked) {
+        gdriveStorage->refreshFiles();
+    }
+}
+
+void MainWindow::on_refresh_files_ftp_btn_clicked()
+{
+    if (ftp_api->isConnectionSelected()) {
+        ftpStorage->refreshFiles();
+    } else {
+        QMessageBox::warning(this, tr("Error"), tr("Please, select FTP-server first."));
+    }
 }
 
 
@@ -682,14 +785,17 @@ void MainWindow::on_so_btn_clicked()
     // Очистим рабочее окно
     ui->desurep_files->clear();
     ui->gdrive_files->clear();
+    ui->ftp_files->clear();
 
     ui->desurep_file_info->clear();
     ui->gdrive_file_info->clear();
+    ui->ftp_file_info->clear();
 
     ui->title_label->setText("Welcome, ");
 
     ui->desurep_files->headerItem()->setText(0, "UFH Storage");
     ui->gdrive_files->headerItem()->setText(0, "Google Drive");
+    ui->ftp_files->headerItem()->setText(0, "FTP Server");
 
 
     // Очистим окно профиля
@@ -720,6 +826,10 @@ void MainWindow::on_so_btn_clicked()
     google_auth->clear();
     updateGoogleLinkButton();
     switchBtn(ui->linkGDrive_btn, false);
+
+    // Очистим FTP
+    ui->ftp_connection_cb->clear();
+    ftp_api->clearConnections();
 }
 
 // Редактирование профиля
@@ -789,18 +899,19 @@ void MainWindow::updateGoogleLinkButton()
 // FTP
 void MainWindow::on_ftp_connection_add_btn_clicked()
 {
-    bool changed = addServerDialog.exec();
+    bool added = addServerDialog.exec();
 
-    if (changed) {
-        QJsonObject server_Metadata = addServerDialog.getData();
+    if (added) {
+        FTPConnection newConnection = addServerDialog.getData();
+        webApi->addFtpConn(*windControl->session, *ftp_api, newConnection);
     }
 
 }
 
-
-void MainWindow::on_refresh_files_gdrive_btn_clicked()
+void MainWindow::on_ftp_connection_cb_currentIndexChanged(int index)
 {
-    if (google_api->isLinked) {
-        gdriveStorage->refreshFiles();
+    if (index != -1 && ftp_api->getConnections().toList().size() >= index)
+    {
+        ftp_api->setCurrentConnection(ftp_api->getConnections().toList()[index]);
     }
 }
