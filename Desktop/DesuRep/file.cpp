@@ -41,9 +41,9 @@ QString File::cropExtension(const QString &fileName) {
     return fileInfo.completeBaseName();
 }
 
-File File::findObjectById(const QList<File> &list, const QString &id) {
-    auto it = std::find_if(list.begin(), list.end(), [&id](const File &file) {
-        return file.getGoogleId() == id;
+File File::findObjectById(const QList<File> &list, const QString &id, QString handler) {
+    auto it = std::find_if(list.begin(), list.end(), [&id, &handler](const File &file) {
+        return handler == "gdrive"? file.getGoogleId() == id : file.getId().toString() == id;
     });
     if (it != list.end()) {
         return *it;

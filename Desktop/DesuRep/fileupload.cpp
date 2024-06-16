@@ -131,13 +131,14 @@ void FileUploadDialog::setStorageType(QString sType) {
     };
 
     bool isGdrive = (storageType == "gdrive");
+    bool isFTP = (storageType == "ftp");
 
-    setVisibility(descriptionTextEdit, !isGdrive);
-    setVisibility(categoryLineEdit, !isGdrive);
-    setVisibility(tagLineEdit, !isGdrive);
-    setVisibility(isPublicCheckBox, !isGdrive);
+    setVisibility(descriptionTextEdit, (!isGdrive && !isFTP));
+    setVisibility(categoryLineEdit, (!isGdrive && !isFTP));
+    setVisibility(tagLineEdit, (!isGdrive && !isFTP));
+    setVisibility(isPublicCheckBox, (!isGdrive && !isFTP));
 
-    if (isGdrive) {
+    if (isGdrive || isFTP) {
         this->setFixedSize(400, 200);
     } else {
         this->setFixedSize(400, 500);
@@ -157,7 +158,8 @@ void FileUploadDialog::fieldsCheck()
         } else {
             switchBtn(fileUploadBtn, true);
         }
-    } else if (this->storageType == "gdrive") {
+    } else if (this->storageType == "gdrive" ||
+               this->storageType =="ftp") {
         if (fileNameLineEdit->text().isEmpty() ||
             fType == "" || fPath == "") {
             switchBtn(fileUploadBtn, false);

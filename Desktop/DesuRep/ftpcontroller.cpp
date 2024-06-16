@@ -17,6 +17,13 @@ FTPController::~FTPController()
     curl_global_cleanup();
 }
 
+QString FTPController::getServerFilePath(const File &file)
+{
+    return QString("/%1/%2.%3").arg(file.getPath(),
+                                    file.getName(),
+                                    File::getFileExtensionFromMimeType(file.getType()));
+}
+
 void FTPController::testConnection(const FTPConnection &connection)
 {
     CURL *curl = curl_easy_init();
@@ -31,7 +38,7 @@ void FTPController::testConnection(const FTPConnection &connection)
         if (res == CURLE_OK) {
             emit connectionTested(true);
         } else {
-            qDebug() << "Connection failed:" << curl_easy_strerror(res);
+            qDebug() << "[FTP Server]: Test Connection failed:" << curl_easy_strerror(res);
             emit connectionTested(false);
         }
 
@@ -114,7 +121,6 @@ void FTPController::processDirectory(const QString &path)
                 QString nextDir = directoriesToProcess.takeFirst();
                 processDirectory(nextDir);
             } else {
-                //qDebug() << "Files found: " << ftpFiles.size();
                 emit filesListedSuccess();
             }
         } else {
@@ -124,14 +130,6 @@ void FTPController::processDirectory(const QString &path)
 
         curl_easy_cleanup(curl);
     }
-}
-
-size_t FTPController::writeCallback(void *ptr, size_t size, size_t nmemb, void *userdata)
-{
-    QByteArray *response = static_cast<QByteArray*>(userdata);
-    size_t totalSize = size * nmemb;
-    response->append(static_cast<char*>(ptr), totalSize);
-    return totalSize;
 }
 
 QList<File> FTPController::parseFileList(const QByteArray &data, const QString &path)
@@ -197,3 +195,203 @@ QList<File> FTPController::parseFileList(const QByteArray &data, const QString &
     }
     return files;
 }
+
+
+int FTPController::progressCallback(void *progressBar, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
+{
+    QProgressBar *bar = static_cast<QProgressBar*>(progressBar);
+    if (bar) {
+        if (dltotal > 0) {
+            bar->setMaximum(static_cast<int>(dltotal));
+            bar->setValue(static_cast<int>(dlnow));
+        } else if (ultotal > 0) {
+            bar->setMaximum(static_cast<int>(ultotal));
+            bar->setValue(static_cast<int>(ulnow));
+        }
+    }
+    return 0;
+}
+
+size_t FTPController::readCallback(void *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    QFile *file = static_cast<QFile*>(userdata);
+    return file->read(static_cast<char*>(ptr), size * nmemb);
+}
+
+size_t FTPController::writeCallback(void *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    QByteArray *response = static_cast<QByteArray*>(userdata);
+    size_t totalSize = size * nmemb;
+    response->append(static_cast<char*>(ptr), totalSize);
+    return totalSize;
+}
+
+size_t FTPController::writeFileCallback(void *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    QFile *file = static_cast<QFile*>(userdata);
+    if (!file || !file->isOpen()) {
+        return 0;
+    }
+    return file->write(static_cast<char*>(ptr), size * nmemb);
+}
+
+
+void FTPController::downloadFile(const QString &fileId, const QString &localFilePath, QProgressBar *progressBar)
+{
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        File toDownload = File::findObjectById(ftpFiles, fileId, "ftp");
+
+        QFile file(localFilePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            emit downloadFailed("Failed to open local file for writing");
+            curl_easy_cleanup(curl);
+            return;
+        }
+
+        QString url = "ftp://" + currentConnection.host + getServerFilePath(toDownload);;
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.toUtf8().constData());
+        curl_easy_setopt(curl, CURLOPT_USERPWD, (currentConnection.username + ":" + currentConnection.password).toUtf8().constData());
+
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, FTPController::writeFileCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file);
+
+        if (progressBar) {
+            curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, FTPController::progressCallback);
+            curl_easy_setopt(curl, CURLOPT_XFERINFODATA, progressBar);
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        }
+
+        CURLcode res = curl_easy_perform(curl);
+        if (res == CURLE_OK) {
+            emit downloadSucceed();
+        } else {
+            emit downloadFailed(curl_easy_strerror(res));
+        }
+
+        curl_easy_cleanup(curl);
+        file.close();
+    } else {
+        emit downloadFailed("[FTP Server]: Failed to initialize CURL");
+    }
+}
+
+void FTPController::uploadFile(const File &uploadFile, QProgressBar *progressBar)
+{
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        QJsonObject metaData = uploadFile.getMetaData();
+        QFile file(metaData["BLOB_path"].toString());
+
+        if (!file.open(QIODevice::ReadOnly)) {
+            emit uploadFailed();
+            return;
+        }
+
+        QString remoteFilePath = getServerFilePath(uploadFile);
+        QString url = "ftp://" + currentConnection.host + remoteFilePath;
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.toUtf8().constData());
+        curl_easy_setopt(curl, CURLOPT_USERPWD, (currentConnection.username + ":" + currentConnection.password).toUtf8().constData());
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+        curl_easy_setopt(curl, CURLOPT_READFUNCTION, FTPController::readCallback);
+        curl_easy_setopt(curl, CURLOPT_READDATA, &file);
+        curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, static_cast<curl_off_t>(file.size()));
+        curl_easy_setopt(curl, CURLOPT_FTP_CREATE_MISSING_DIRS, (long)CURLFTP_CREATE_DIR_RETRY);
+
+        if (progressBar) {
+            curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, FTPController::progressCallback);
+            curl_easy_setopt(curl, CURLOPT_XFERINFODATA, progressBar);
+            curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        }
+
+        // Enable passive mode
+        curl_easy_setopt(curl, CURLOPT_FTP_USE_EPSV, 1L);
+
+        CURLcode res = curl_easy_perform(curl);
+        if (res == CURLE_OK) {
+            emit uploadSucceed();
+        } else {
+            emit uploadFailed();
+            qDebug() << "[FTP Server]: Upload failed:" << curl_easy_strerror(res);
+        }
+
+        curl_easy_cleanup(curl);
+        file.close();
+    }
+}
+
+void FTPController::deleteFile(const QString &fileId)
+{
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        File toDelete = File::findObjectById(ftpFiles, fileId, "ftp");
+
+        QString url = "ftp://" + currentConnection.host + "/";
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.toUtf8().constData());
+        curl_easy_setopt(curl, CURLOPT_USERPWD, (currentConnection.username + ":" + currentConnection.password).toUtf8().constData());
+
+        QString deleCommand = "DELE " + getServerFilePath(toDelete);
+        curl_slist *commands = nullptr;
+        commands = curl_slist_append(commands, deleCommand.toUtf8().constData());
+
+        curl_easy_setopt(curl, CURLOPT_QUOTE, commands);
+
+        CURLcode res = curl_easy_perform(curl);
+        if (res == CURLE_OK) {
+            emit filesNeedUpdate();
+        } else {
+            qDebug() << "[FTP Server]: Delete error "<< curl_easy_strerror(res);
+        }
+
+        curl_slist_free_all(commands);
+        curl_easy_cleanup(curl);
+    } else {
+        qDebug() << "[FTP Server]: Failed to initialize CURL";
+    }
+}
+
+void FTPController::moveFile(const QString &fileId, const QString &destinationPath)
+{
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        File toMove = File::findObjectById(ftpFiles, fileId, "ftp");
+
+        QString sourcePath = getServerFilePath(toMove);
+        QString destinationFilePath = QString("/%1/%2.%3")
+                                        .arg(destinationPath,
+                                             toMove.getName(),
+                                             File::getFileExtensionFromMimeType(toMove.getType()));
+
+        QString rnfrCommand = "RNFR " + sourcePath;
+        QString rntoCommand = "RNTO " + destinationFilePath;
+        qDebug() << rnfrCommand;
+        qDebug() << rntoCommand;
+
+        curl_slist *commands = nullptr;
+        commands = curl_slist_append(commands, rnfrCommand.toUtf8().constData());
+        commands = curl_slist_append(commands, rntoCommand.toUtf8().constData());
+
+        QString url = "ftp://" + currentConnection.host;
+        curl_easy_setopt(curl, CURLOPT_URL, url.toUtf8().constData());
+        curl_easy_setopt(curl, CURLOPT_USERPWD, (currentConnection.username + ":" + currentConnection.password).toUtf8().constData());
+        curl_easy_setopt(curl, CURLOPT_QUOTE, commands);
+
+        CURLcode res = curl_easy_perform(curl);
+        if (res == CURLE_OK) {
+            emit filesNeedUpdate();
+        } else {
+            qDebug() << "[FTP Server]: Move error:" << curl_easy_strerror(res);
+        }
+
+        curl_slist_free_all(commands);
+        curl_easy_cleanup(curl);
+    } else {
+        qDebug() << "[FTP Server]: Failed to initialize libcurl.";
+    }
+}
+
+
+

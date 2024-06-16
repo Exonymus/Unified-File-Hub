@@ -10,7 +10,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->download_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
     connect(ui->download_gdrive_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
+    connect(ui->download_ftp_btn, SIGNAL(clicked()), this, SLOT(on_actionDownload_triggered()));
+
     connect(ui->upload_btn, SIGNAL(clicked()), this, SLOT(on_actionUpload_triggered()));
+    connect(ui->upload_gdrive_btn, SIGNAL(clicked()), this, SLOT(on_actionUpload_triggered()));
+    connect(ui->upload_ftp_btn, SIGNAL(clicked()), this, SLOT(on_actionUpload_triggered()));
 
     desuStorage = new FileTreeWidget(ui->desurep_files, "UFH Storage", ui->desurep_file_info, "ufh", this);
     gdriveStorage = new FileTreeWidget(ui->gdrive_files, "Google Drive", ui->gdrive_file_info, "gdrive", this);
@@ -54,12 +58,15 @@ MainWindow::MainWindow(QWidget *parent)
             desuStorage->refreshFiles();
         } else if (fileUploader == "gdrive") {
             gdriveStorage->refreshFiles();
+        } else if (fileUploader == "ftp") {
+            ftpStorage->refreshFiles();
         }
 
         fileUploader.clear();
     };
     connect(webApi, &ApiController::uploadSucceed, this, uploadSucceedHandler); // UFH Storage
     connect(google_api, &GoogleDriveAPI::uploadSucceed, this, uploadSucceedHandler); // Google Drive
+    connect(ftp_api, &FTPController::uploadSucceed, this, uploadSucceedHandler); // FTP Server
 
     auto uploadFailedHandler = [this] {
         QMessageBox::warning(this, tr("Error"), tr("Failed to upload the file."));
@@ -71,6 +78,7 @@ MainWindow::MainWindow(QWidget *parent)
     };
     connect(webApi, &ApiController::uploadFailed, this, uploadFailedHandler); // UFH Storage
     connect(google_api, &GoogleDriveAPI::uploadFailed, this, uploadFailedHandler); // Google Drive
+    connect(ftp_api, &FTPController::uploadFailed, this, uploadFailedHandler); // FTP Server
 
     // Сигналы загрузки файла
     auto downloadSucceedHandler = [this] {
@@ -80,6 +88,7 @@ MainWindow::MainWindow(QWidget *parent)
     };
     connect(webApi, &ApiController::downloadSucceed, this, downloadSucceedHandler); // UFH Storage
     connect(google_api, &GoogleDriveAPI::downloadSucceed, this, downloadSucceedHandler); // Google Drive
+    connect(ftp_api, &FTPController::downloadSucceed, this, downloadSucceedHandler); // FTP Server
 
     auto downloadFailedHandler = [this](const QString& message) {
         fileOperationInProgress = false;
@@ -88,6 +97,7 @@ MainWindow::MainWindow(QWidget *parent)
     };
     connect(webApi, &ApiController::downloadFailed, this, downloadFailedHandler); // UFH Storage
     connect(google_api, &GoogleDriveAPI::downloadFailed, this, downloadFailedHandler); // Google Drive
+    connect(ftp_api, &FTPController::downloadFailed, this, downloadFailedHandler); // FTP Server
 
 
     // Сигналы изменения пользователя
@@ -343,53 +353,90 @@ void MainWindow::actionsCheck()
 void MainWindow::on_actionCopy_triggered()
 {
     // Обработка события копирования
-    QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
-    copyBuffer = findFileById(selectedFileId, desuStorage->getFiles());
+    int currentIndex = ui->storages_tabWidget->currentIndex();
 
-    copyBuffer.setOwner(windControl->session->getId());
-    if (!cutBuffer.isEmptyFile()) { cutBuffer = File(); }
+    if (currentIndex == 1) {
+        QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
+        copyBuffer = findFileById(selectedFileId, desuStorage->getFiles());
+
+        copyBuffer.setOwner(windControl->session->getId());
+        if (!cutBuffer.isEmptyFile()) { cutBuffer = File(); }
+    } else if (currentIndex == 2) {
+        //
+    } else if (currentIndex == 4) {
+        QMessageBox::warning(this, "", "Copying files using FTP protocol is not supported by default.");
+    }
 }
 
 void MainWindow::on_actionCut_triggered()
 {
     // Обработка события вырезания
-    QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
-    cutBuffer = findFileById(selectedFileId, desuStorage->getFiles());
+    int currentIndex = ui->storages_tabWidget->currentIndex();
 
-    if (!copyBuffer.isEmptyFile()) { copyBuffer = File(); }
+    if (currentIndex == 1) {
+        QUuid selectedFileId = QUuid(ui->desurep_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString());
+        cutBuffer = findFileById(selectedFileId, desuStorage->getFiles());
+
+        if (!copyBuffer.isEmptyFile()) { copyBuffer = File(); }
+    } else if (currentIndex == 2) {
+        //
+    } else if (currentIndex == 4) {
+        QString selectedFileId = ui->ftp_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
+        cutBuffer = File::findObjectById(*ftpStorage->getFiles(), selectedFileId, "ftp");
+    }
 }
 
 void MainWindow::on_actionPaste_triggered()
 {
     // Обработка события вставки
-    QString filePath = getPath(ui->desurep_files->currentItem()).removeFirst();
-    QString filePath_formatted = filePath != "My Files"? filePath.mid(filePath.indexOf("/")).removeFirst() : ".";
+    int currentIndex = ui->storages_tabWidget->currentIndex();
 
-    // Обработка события вставки
-    if (!copyBuffer.isEmptyFile()) {
-        // Копирование
-        if (filePath_formatted != copyBuffer.getPath())
-        {
-            copyBuffer.setPath(filePath_formatted);
+    if (currentIndex == 1) {
+        QString filePath = getPath(ui->desurep_files->currentItem()).removeFirst();
+        QString filePath_formatted = filePath != "My Files"? filePath.mid(filePath.indexOf("/")).removeFirst() : ".";
+
+        // Обработка события вставки
+        if (!copyBuffer.isEmptyFile()) {
+            // Копирование
+            if (filePath_formatted != copyBuffer.getPath())
+            {
+                copyBuffer.setPath(filePath_formatted);
+            }
+
+            if (copyBuffer.getSizeInMB() < desuStorage->spaceAvailableMB())
+            {
+                webApi->copyFile(*windControl->session, copyBuffer.getId().toString(), filePath_formatted);
+            } else {
+                QMessageBox::critical(this, "", "⚠ File size error!\n\nThe copied file has exceeded your space limit! "
+                                             "\nPlease select another file to copy.");
+            }
+
+        } else if (!cutBuffer.isEmptyFile()) {
+            // Перемещение
+            if (filePath_formatted != cutBuffer.getPath())
+            {
+                cutBuffer.setPath(filePath_formatted);
+                webApi->updateFile(*windControl->session, cutBuffer.getMetaData());
+
+                cutBuffer = File();
+            }
+        }
+    } else if (currentIndex == 2) {
+        //
+    } else if (currentIndex == 4) {
+        QString filePath = getPath(ui->ftp_files->currentItem()).removeFirst();
+        QString filePath_formatted = filePath != "Server Files"? filePath.mid(filePath.indexOf("/")).removeFirst() : ".";
+
+        // Обработка события вставки
+        if (!cutBuffer.isEmptyFile()) {
+            // Перемещение
+            if (filePath_formatted != cutBuffer.getPath())
+            {
+                ftp_api->moveFile(cutBuffer.getGoogleId(), filePath_formatted);
+                cutBuffer = File();
+            }
         }
 
-        if (copyBuffer.getSizeInMB() < desuStorage->spaceAvailableMB())
-        {
-            webApi->copyFile(*windControl->session, copyBuffer.getId().toString(), filePath_formatted);
-        } else {
-            QMessageBox::critical(this, "", "⚠ File size error!\n\nThe copied file has exceeded your space limit! "
-                                         "\nPlease select another file to copy.");
-        }
-
-    } else if (!cutBuffer.isEmptyFile()) {
-        // Перемещение
-        if (filePath_formatted != cutBuffer.getPath())
-        {
-            cutBuffer.setPath(filePath_formatted);
-            webApi->updateFile(*windControl->session, cutBuffer.getMetaData());
-
-            cutBuffer = File();
-        }
     }
 }
 
@@ -667,6 +714,13 @@ void MainWindow::on_actionDelete_triggered()
         if (showDeleteConfirmationDialog(selectedFileName)) {
             google_api->deleteFile(selectedFileId);
         }
+    } else if (currentIndex == 4) {
+        QString selectedFileName = ui->ftp_files->currentItem()->text(0);
+        QString selectedFileId = ui->ftp_files->currentItem()->data(0, Qt::UserRole).toJsonObject()["id"].toString();
+
+        if (showDeleteConfirmationDialog(selectedFileName)) {
+            ftp_api->deleteFile(selectedFileId);
+        }
     }
 }
 
@@ -678,6 +732,8 @@ void MainWindow::on_actionDownload_triggered()
         activeStorage = ui->desurep_files;
     } else if (ui->storages_tabWidget->currentIndex() == 2) {
         activeStorage = ui->gdrive_files;
+    } else if (ui->storages_tabWidget->currentIndex() == 4) {
+        activeStorage = ui->ftp_files;
     }
 
     if (!activeStorage) return;
@@ -705,6 +761,8 @@ void MainWindow::on_actionDownload_triggered()
     } else if (ui->storages_tabWidget->currentIndex() == 2) {
         qreal fileSize = activeStorage->currentItem()->data(0, Qt::UserRole).toJsonObject()["size"].toDouble();
         google_api->downloadFile(selectedFileId, savePath, fileSize, ui->file_status_pb);
+    } else if (ui->storages_tabWidget->currentIndex() == 4) {
+        ftp_api->downloadFile(selectedFileId, savePath, ui->file_status_pb);
     }
 
 }
@@ -741,6 +799,22 @@ void MainWindow::on_actionUpload_triggered()
             fileOperationInProgress = true;
             fileUploader = "gdrive";
             google_api->uploadFile(uploadDialog.getUploadData(),
+                                   ui->file_status_pb);
+        }
+        else
+        {
+            fileUploader.clear();
+            uploadDialog.clearData();
+        }
+    } else if (currentIndex == 4) {
+        uploadDialog.setRestrictions(ftpStorage->spaceAvailableMB());
+        uploadDialog.setStorageType("ftp");
+        if (uploadDialog.exec() == QDialog::Accepted)
+        {
+            showFileStatus("Uploading file to FTP server:");
+            fileOperationInProgress = true;
+            fileUploader = "ftp";
+            ftp_api->uploadFile(uploadDialog.getUploadData(),
                                    ui->file_status_pb);
         }
         else
@@ -913,5 +987,22 @@ void MainWindow::on_ftp_connection_cb_currentIndexChanged(int index)
     if (index != -1 && ftp_api->getConnections().toList().size() >= index)
     {
         ftp_api->setCurrentConnection(ftp_api->getConnections().toList()[index]);
+        ftpStorage->refreshFiles();
     }
 }
+
+void MainWindow::on_ftp_storage_selector_currentIndexChanged(int index)
+{
+    if (index != -1 && ftp_api->getConnections().toList().size() >= index)
+    {
+        ui->ftp_info->setValue(ftpStorage->spaceUsage());
+    }
+}
+
+
+void MainWindow::on_storages_tabWidget_currentChanged(int index)
+{
+    copyBuffer = File();
+    cutBuffer = File();
+}
+

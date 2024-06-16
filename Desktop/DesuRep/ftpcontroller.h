@@ -6,6 +6,7 @@
 #include <curl/curl.h>
 #include <QUrl>
 #include <QList>
+#include <QProgressBar>
 
 struct FTPConnection {
     QString id;
@@ -35,6 +36,11 @@ public:
 
     void getUserFiles();
 
+    void downloadFile(const QString &fileId, const QString &localFilePath, QProgressBar *progressBar);
+    void uploadFile(const File &uploadFile, QProgressBar *progressBar);
+    void deleteFile(const QString &fileId);
+    void moveFile(const QString &fileId, const QString &destinationPath);
+
     QList<File> ftpFiles;
     FTPConnection currentConnection;
 
@@ -58,7 +64,13 @@ private:
     QString currentPath;
     QStringList directoriesToProcess;
 
+    static QString getServerFilePath(const File &file);
+
     static size_t writeCallback(void *ptr, size_t size, size_t nmemb, void *userdata);
+    static int progressCallback(void *progressBar, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow);
+    static size_t readCallback(void *ptr, size_t size, size_t nmemb, void *userdata);
+    static size_t writeFileCallback(void *ptr, size_t size, size_t nmemb, void *userdata);
+
     QList<File> parseFileList(const QByteArray &data, const QString &path);
     void processDirectory(const QString &path);
 };

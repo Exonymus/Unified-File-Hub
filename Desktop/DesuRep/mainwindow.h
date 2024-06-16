@@ -71,6 +71,10 @@ private slots:
 
     void on_refresh_files_ftp_btn_clicked();
 
+    void on_ftp_storage_selector_currentIndexChanged(int index);
+
+    void on_storages_tabWidget_currentChanged(int index);
+
 private:
     QTimer *actionsTimer;
     QTimer *sessionTimer;

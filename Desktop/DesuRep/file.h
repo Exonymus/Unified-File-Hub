@@ -43,7 +43,7 @@ public:
     static QString getFileExtensionFromMimeType(const QString& mimeTypeName);
     static QString getContentType(const QString& filePath);
     static QString cropExtension(const QString &fileName);
-    static File findObjectById(const QList<File> &list, const QString &id);
+    static File findObjectById(const QList<File> &list, const QString &id, QString handler = "gdrive");
 
 private:
     QJsonObject metaData;
